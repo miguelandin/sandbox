@@ -1,0 +1,16 @@
+# compiled
+bin/
+obj/
+*.out
+*.o
+
+# env
+compile_flags.txt
+compile_commands.json
+.cache/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+.DS_STORE
