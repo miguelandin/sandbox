@@ -27,6 +27,6 @@ clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
 run: $(OUTPUT)
-	./$(OUTPUT)
+	./$(OUTPUT) $(ARGS)
 
 .PHONY: clean run
