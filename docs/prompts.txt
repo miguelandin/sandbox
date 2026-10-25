@@ -1,0 +1,43 @@
+ 19/10 – 22/10: Integración de la tecnología ptrace en el proceso padre para engancharse al hijo e interceptar sus llamadas al sistema (syscalls). Vale vamos con el siguiente paso. Como hago esto? (no me enseñes el código directamente, solo dame una base para donde empezar) 
+viendo documentación online he visto que ptrace pausa el proceso cada vez que ocurre una señal pero desde Linux 3.4 se puede usar PTRACE_SEIZE el cual no para el proceso y da mejor manejo de eventos. Que opinas?
+a la hora de hacer que el el hijo espere a que el padre tenga el PTRACE_SEIZE, que opción me recomiendas: usar un pipe() o un raise SIGSTOP? dime que ventajas de rendimiento, legibilidad, consistencia y seguridad abarcan ambas opciones.
+waitpid bloquea el código hasta que consigue el pid de cierto proceso no?
+explicame los parámetros de waitpid().
+me estoy perdiendo un poco en el pid. El pid del proceso hijo siempre es 0 no? → al hacer waitpid(pid,...) después del if(pid==0) siempre estaremos esperando al proceso padre no?
+→ con   waitpid(pid, &status, WUNTRACED); el código se bloqueará hasta que el proceso del hijo tenga esa señal?
+El raise(SIGSTOP) debe de ir justo debajo del execve o encima?
+Vale. Pero una vez establecido el ptrace mirando al fork hijo, ¿Cómo quito el SIGSTOP para que pueda ejecutar el execve?
+ Como se usa ptrace con la función de PTRACE_SEIZE?
+no entiendo muy bien que está aportando ptrace en bucle.
+→ ptrace() sirve para que waitpid funcione mejor?
+ah vale ya entiendo: Ptrace sirve para que waitpid() pueda entender más tipos de interrupciones como leer archivos o conectarse a internet y esas nuevas interrupciones que puede lanzar se define en el cuarto parámetro del ptrace?
+aquí que estas primero diciendo que haga interrupciones cuando el hijo haga llamadas al sistema o ejecute otros binarios. Luego con ptrace ppones nullptr en las options para que deje de estar con SIGSTOP? ptrace puede enviar señales a un proceso como un pipe?
+vale entonces primero se define que interrupcines genear y luego se le llama la señal nullptr para que el fork reanude de forma normal?
+que señal de waitpid puedo usar para comprobar que ptrace está funcionando con ls?
+por que insistes en usar un while true?
+por que pones al final del bucle un ptrace para decir que el proceso continue? no se supone que al haber definido PTRACE_SEIZE, el proceso no se detenía?
+→ el proceso hijo se detiene cuando waitpid detecta algo?
+→ el bucle de intercepciones no es que esté constantemente iterando, sino que avanza cuando waitpid() reciba un cambio de estado del proceso hijo. También por que en este caso usamos waitpid con la opción 0 en vez de la opción WUNTRACED?
+hola payo, Hoy día 25 tengo que completar el respectivo hito
+explicame cada línea.
+por que se usa la variable long? podría sustituir el 0x80 por un #define s=0x80? por qué usa el operador || a la hora de mirar si abre un archivo?
+orig rax es un unsigned long long
+no sería mejor usar       auto syscall_id = regs.orig_rax;
+La variable syscall_id solo puede contener una instrucción? si es el caso pongo los else if. También he ejecutado el programa y me da una salida bastante desconcertante:
+Mejor así no crees?
+donde puedo ver a que valor de SYS le corresponde cada ID?
+(log) Que señales son las desconocidas
+vale vamos a dejar de momento el default vacío. Otra cosa. Dime a que corresponde cada señal de la salida de este ls: (log)
+Por que se ejecutan dos veces todas las llamadas del sistema? me gustaría que se ejecutara una sola vez para que no haya tanto ruido. ¿Cómo lo haría? no muestres código, solo exlicalo.
+por que poner dos PTRACE_SYSCALL hace que se intercepte siempre? el primero está fuera del while.
+vale lo he implementado pero me parece que esta salida es incorrecta: (log)
+puedo saber que librerías está abriendo?
+(código de internet) Explica cada línea de este código.
+un constexpr es como un static pero mejor?
+Por que se usa std::size_t en vez de simplemente size_t?
+Por qué ptrace te da al principio una dirección de inicio incorrecta?
+por qué hacer un for(;;) en vez de un while(true) (más legible)?
+Qué hace reinterpret_cast, es un static_cast?
+PTRACE_PEEKDATA solo puede copiar de en 8 en 8 bytes?
+Al ejecutar ./bin/sandbox file.txt, me ha pillado el nombre del file.txt pero no la ruta completa ya que se encuentra en el mismo directorio que de donde se ejecuta el binario. Se podría saber siempre la ruta completa?
+user_regs_struct Esta variable que información contiene?

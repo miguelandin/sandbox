@@ -1,5 +1,3 @@
-Progreso del proyecto. A continuación se ve un diario apuntando todos los progresos en el proyecto siendo la última la más reciente.
-
 27/10/26
 Se ha creado la estructura básica del proyecto, con un `.gitignore` y `Makefile`. La estructura usa la estándar usando directorios `bin/`, `obj/`, `include/` y `src/`.
 

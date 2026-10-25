@@ -11,6 +11,8 @@
 #include <syscall.h>
 #include <unistd.h>
 
+constexpr int TRACE_IS_GOOD_BIT = 0x80;
+
 // READ process c-string
 std::string read_string_from_process(pid_t pid, unsigned long address,
                                    std::size_t max_len = PATH_MAX) {
@@ -92,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     int signal = WSTOPSIG(status);
 
-    if (signal == (SIGTRAP | 0x80)) {
+    if (signal == (SIGTRAP | TRACE_IS_GOOD_BIT)) {
       if (manage) {
         struct user_regs_struct regs;
         ptrace(PTRACE_GETREGS, pid, nullptr, &regs);
