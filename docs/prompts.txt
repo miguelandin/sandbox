@@ -41,3 +41,8 @@ Qué hace reinterpret_cast, es un static_cast?
 PTRACE_PEEKDATA solo puede copiar de en 8 en 8 bytes?
 Al ejecutar ./bin/sandbox file.txt, me ha pillado el nombre del file.txt pero no la ruta completa ya que se encuentra en el mismo directorio que de donde se ejecuta el binario. Se podría saber siempre la ruta completa?
 user_regs_struct Esta variable que información contiene?
+Hola payo, ahora que voy a separar el "interceptor" del main.py y se llamará con scanner.run() devolviendo strings. Es la forma más correcta que devuelva strings? así los podré mostrar por pantalla además de guardarlos en logs. También, como puedo recibir esos strings y mostrarlos a la vez sin que el programa se dentenga?
+y podría hacer varias funciones? guardar, imprimir, etc?
+esta forma está bien pero igual sería mejor usar una más visual: Lo que tenía pensando es que los parametros de scanner.run() sean un número indeterminado de funciones que tengan de parametro, por lo menos, los strings que devuelvan el scanner. Así a la hora de llamarlo sea vea algo como esto: scanner.run(fun1,fun2,fun3);
+Explica la función run de la versión con template: Qué hace el template <typename... Handlers> Qué hace run(Handlers... handlers) Qué hacer handlers(intercepted_action), ...); Al usar template no habría que especificar en algún lado que se está pidiendo Callables?
+Estoy en C++23. ¿Que sea una versión tan moderna supondrá un problema para ejecutar en una gran variedad de sistemas?
