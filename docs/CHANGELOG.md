@@ -36,3 +36,19 @@ Hoy se ha fragmentado en varios archivos:
 De la clase **`Tracer`**, se está usando un `std::unique_ptr<ArchHandler>` aunque debería de mirar si de verdad es necesario en este caso usar un puntero o vale con una copia entera de la variable para poder emplear correctamente el polimorfismo. Además, la función `run()` se le ha puesto un template **`<typename... Handlers>`** para que al llamarla, se puedan poner funciones con las que manejen los strings que devuelve la función `run()` a la hora de identificar y manejar las `syscalls`. Así se puede imprimir por pantalla, guardar en logs, y demás, estos strings sin pausar el flujo del programa y sin tener que llamar la función varias veces.
 
 Para la siguiente sesión debería implementar está fragmentación de código en el `main.cpp`, el cual de momento no a sido cambiado.
+
+04/11/26
+Después de investigar sobre `ptrace`, he visto que no hace falta implementar nada de polimorfismo de clases con `ArchHandler`, ya que `ptrace` ya tiene una función que saca las llamada de sistema sobre cualquier arquitectura con el mismo output: 
+```c++
+#include <sys/ptrace.h>
+#include <linux/ptrace.h>
+#include <sys/syscall.h>
+struct ptrace_syscall_info sys_info;
+ptrace(PTRACE_GET_SYSCALL_INFO, target_pid, sizeof(sys_info), &sys_info) != -1
+```
+
+También, ahora podemos distinguir si es una llamada de entrada y salida con `sys_info.op == PTRACE_SYSCALL_INFO_ENTRY` → no hace falta usar la variable `manage` que alternaba entre true y false.
+
+Para manager las señales se hace accediendo al siguiente atributo: `sys_info.op` y para coger la dirección de memoria del proceso (para usarlo en `read_string_from_process`) se haría así: `sys_info.entry.args[1]`. 
+
+Para la siguiente sesión, se eliminarán las clases de `ArchHandler` y terminará la clase `Tracer`.
