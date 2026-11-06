@@ -52,3 +52,27 @@ También, ahora podemos distinguir si es una llamada de entrada y salida con `sy
 Para manager las señales se hace accediendo al siguiente atributo: `sys_info.op` y para coger la dirección de memoria del proceso (para usarlo en `read_string_from_process`) se haría así: `sys_info.entry.args[1]`. 
 
 Para la siguiente sesión, se eliminarán las clases de `ArchHandler` y terminará la clase `Tracer`.
+
+06/11/26
+He estado implementado el nuevo descubrimiento de `<linux/ptrace.h>` el cual tiene el struct de `syscall_info` tan útil, pero me he topado con un problema que resulta ser bastante común: Las librerías `<sys/ptrace.h>` y `<linux/ptrace.h>`. Esto se debe a que son entidades separadas: Las librerías de `<linux/>` son de la API de Linux los cuales están mas actualizados que las librerías de `<sys>` que son del [C stándar](https://www.open-std.org/jtc1/sc22/wg14/).
+
+Al principio, tenía pensado deshacerme por completo de `<sys/ptrace.h>` haciendo una función propia que imite a `ptrace()`:
+```C++
+inline long ptrace(enum __ptrace_request request, pid_t pid, void *addr, void *data)
+{
+	return syscall(SYS_ptrace, request, pid, addr, data);
+}
+```
+
+Pero tras una exhaustiva investigación he llegado a la conclusión que lo mejor sería definir un header file que incluye `<sys/ptrace.h>` y las variables a mano que quiero usar de la API de Linux. Es mejor así porque así seguiré usando el estándar POSIX, evitando problemas de compatibilidad con otras librerías como los `Linux Namespaces` o `seccomp` en el futuro. Además, con esta otra solución, el programa será compatible con más sistemas Linux ya que prácticamente todos tienen `<sys>` mientras que la API Linux no está en tantos.
+
+Con esto, he credo el header file `KernelAbi.hpp` donde `Abi` significa Application Binary Interface, que es como una API pero solo define variables. Del header file he copiado las variables de `ptrace_syscall_info` del propio [kernel de linux](https://github.com/torvalds/linux/blob/master/include/uapi/linux/ptrace.h) y adaptado para que funcione en C++.
+
+Finalmente, tras estar todo el día programando esto, el `main.cpp`  es legible. Para lograr esto he hecho todos estos cambios:
+1. He creado la clase `Tracer` en `Tracer.hpp` el cual maneja toda la parte de saber que acciones el proceso está ejecutando (para futuras versiones habría que simplificar en `.run()` en varias funciones). Al principio la clase se dividía en header file y `cpp`, pero resulta que el compilador tiene que saber lo que hace una función con templates en el mismo lugar donde se define por lo que tenía que juntar todo en el `.hpp`. Lo único malo de esto sería que al hacer un make, no detectará los cambias si ya fue compilado, por lo que habría que hacer un make clean y luego make de nuevo. En la siguiente sesión miraré si se puede hacer algo al respecto.
+
+2. He creado el name space `psx` que tiene funciones auxiliares para que el manejo de funciones POSIX sea más ameno.
+
+3. El `Makefile` lo he revertido a su versión antigua ya que no usaré nada de manejar el Arch.
+
+4. El main ha sido simplificado: Ahora solo se maneja las flags (que podría meterlo en otra función aparte pero me parecería innecesario); se instancia la clase Tracer y se llama la función `run()` con una lambda temporal creada para ver la salida.
