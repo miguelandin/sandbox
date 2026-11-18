@@ -1,6 +1,7 @@
 #include "PosixUtils.hpp"
 #include <csignal>
 #include <cstdlib>
+#include <sched.h>
 #include <sys/wait.h>
 #include <vector>
 
@@ -35,14 +36,18 @@ std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
   }
 }
 
-pid_t psx::launchProcess(const char *binaryPath, char *const *arguments) {
-  std::vector<const char *> envp = {"PATH=/usr/bin", "HOME=/tmp", nullptr};
-
+pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
+                         int nmFlags) {
   pid_t pid = fork();
 
   if (pid == 0) {
+    if (unshare(nmFlags) == -1) {
+      std::perror("unshare execution failed");
+      _exit(1);
+    }
+
     raise(SIGSTOP);
-    execve(binaryPath, arguments, const_cast<char *const *>(envp.data()));
+    execvp(binaryPath, arguments);
 
     std::perror("execve execution failed");
     _exit(127);
@@ -60,7 +65,7 @@ psx::StopKind psx::classifyStop(int status) {
   if (WIFEXITED(status) || WIFSIGNALED(status)) {
     return psx::StopKind::Ended;
   }
-  if((status >> 16) != 0){
+  if ((status >> 16) != 0) {
     return psx::StopKind::PtraceEvent;
   }
   if (WSTOPSIG(status) == (SIGTRAP | psx::TRACE_IS_GOOD_BIT)) {

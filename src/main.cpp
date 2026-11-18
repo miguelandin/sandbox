@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     i++;
   }
 
-  Tracer tracer(psx::launchProcess(argv[i], argv + i));
+  Tracer tracer(psx::launchProcess(argv[i], argv + i, CLONE_NEWNET));
   auto print = [](std::string s)->void{std::cout<<s<<std::endl;};
   tracer.run(print);
   return 0;

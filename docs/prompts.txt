@@ -46,3 +46,28 @@ y podría hacer varias funciones? guardar, imprimir, etc?
 esta forma está bien pero igual sería mejor usar una más visual: Lo que tenía pensando es que los parametros de scanner.run() sean un número indeterminado de funciones que tengan de parametro, por lo menos, los strings que devuelvan el scanner. Así a la hora de llamarlo sea vea algo como esto: scanner.run(fun1,fun2,fun3);
 Explica la función run de la versión con template: Qué hace el template <typename... Handlers> Qué hace run(Handlers... handlers) Qué hacer handlers(intercepted_action), ...); Al usar template no habría que especificar en algún lado que se está pidiendo Callables?
 Estoy en C++23. ¿Que sea una versión tan moderna supondrá un problema para ejecutar en una gran variedad de sistemas?
+[Tracer.hpp] Este bloque de código para el Tracer crees que necesitaria ser divido en más trozos?
+Entonces estás diciendo que en vez de devolver strings devuelva algo más facil de parsear como un struct enum?
+[Pasted] Me gusta más esta forma. Podría usar un union para ahorrar memoria, aunque tampo me parece un problema ocupar un poco más de memoria
+También dices que hay un problema con que ahora mismo el Tracer no detecta los procesos hijos verdad?
+A la hora de ejecutar un programa que usa de normal muchos forks, su ejecución se vería afectada? tendría lag?
+No me he enterado por qué iría lento. Resúmelo mucho.
+Ah vale okey. Y montar el string también consume mucho tiempo de ejecución?
+Podrías explicarme en mayor detalle como tendría que cambiar la función psx:resumeProcess() para que no deje los procesos hijos atrás?
+[Pasted] Así? Me está costando entenderlo.
+Como se termina correctamente con un proceso que ha terminado? podría hacer una función del namespace psx que haga eso de forma más cómoda ¿Qué opinas?.
+Así estaría bien? Podrías explicarme línea a línea lo que está pasando y por qué?
+Algo así? No entiendo muy bien que significa el continue dentro de un switch.
+si pongo llaves en los case → no haría falta poner los break?
+Entonces me recomiendas crear una carpeta tests que contenga estos códigos? luego en el MakeFile podría poner una opción que compile los tests y los meta en /bin.
+SignalDelivery es una señal que ha mandado el propio proceso, no el ptrace ¿no?
+Que me queda hacer sobre la clase Tracer que hablamos hoy.
+Vamos con el Asilamiento con Linux Namespaces (paso 8 de la documentación). Explícame que es un Linux Namespace.
+vale entonces para aplicar los namespaces al proceso malicioso debería cambiar la función launchProcess. Que opción me recomiendas?: Usar clone() directamente o usar unshare(). Me parece que clone() es más fácil?
+Qué pasa si a unshare le paso 0?
+Quiero poner como valor default bloquear todo por seguridad.
+[Salida de ping] Ha hecho conexiones ha internet? 
+Está aquí la tarjeta de red creada con CLONE_NEWNET?
+voy a cambiar envp para que tenga el mismo enviroment que un proceso normal. De todas formas no le veo el sentido de aplicar estos bloqueos si ya tengo el Linux Namespace para eso y lo único que hace es hacer más molesto el uso de sandbox.
+execve(binaryPath, arguments, environ); Con esto debería de bastar verdad? Entonces ya podría hacer ./bin/sandbox ls en vez de ./bin/sandbox /bin/ls?
+Genial. Que bien. Vale ahora quiero hacer que no haga falta sudo para usar sandbox. Que tenía que hacer paso por paso?

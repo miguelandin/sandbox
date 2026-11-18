@@ -101,3 +101,23 @@ SignalDelivery /* a real signal for the tracee: must be re-injected }; */
 3. Esta clase se usa en una nueva función `StopKind classifyStop(int status)` que nos hará el trabajo de parsear las 4 situaciones que se pueden dar dependiendo del resultado de `waitpid`. Estas situaciones se pasan finalmente en un switch en el cual, si se se da el caso de `psx::StopKind::SyscallStop` se ejecutará el antiguo switch de la versión anterior que manejaba el `PTRACE_SYSCALL_INFO_ENTRY`. En el caso de que se diera `SignalDelivery` (señales para el proceso que necesita) se llama a `psx::resumeProcess` con el parámetro `signal=WSTOPSIG(m_status)` para que pueda continuar su correcto funcionamiento.
 
 Con todos estos arreglos `sandbox` es ahora capaz de detectar subprocesos del proceso malicioso. Lo siguiente que debería de hacer sería simplificar más la función `run` del `Tracer` y también tengo que mirar si debería de usar `std::uint_64t` o `usigned long` por temas de compatibilidad con distintas arquitecturas.
+
+---
+19/11/26
+He simplificado un poco más la función `run` del `Tracer` dividiendo el manejo de de la `syscall` en una función privada llamada `manageSyscall(pid_t pid)`.
+
+También he implementando por fin el uso (de forma primitiva) el uso de los Linux Namespaces. Los Linux Namespaces son una funcionalidad de Linux proporcionada por la librería `<sched.h>` la cual nos permite aislar recursos de un proceso de una forma muy sencilla y efectiva: Con tan solo usar la función `unshare(FLAGS)` podemos aislar recursos de un proceso como: Internet, el sistema de archivos, usuarios, procesos, hostname y dominio, etc.
+
+Esta función `unshare` ha sido muy fácil de implementar, tan solo ha sido necesario cambiar la función `launchProcess`:
+1. Se ha puesto un nuevo parámetro de tipo `int` para pasar las flags de `unshare`.
+2. Se ha puesto la función `unshare` justo después de hacer el `fork` (en el proceso hijo, que será el que ejecutara `execve` malicioso). 
+
+Se ha testeado si funciona con la flag `CLONE_NEWNET` la cual aísla la red y ha sido un éxito:
+```java
+ping: 1 
+google.com: Temporary failure in name resolution1 
+```
+
+Finalmente, como se están usando Linux Namespaces a partir de ahora, no veo la necesidad de crear a mano la variable `envp` para limitar lo que el proceso puede ver. Por esto mismo he cambiado la función `execve` por `execvp` la cual es exactamente igual que este pero usar de variable de entorno `environ`, el cual el es mismo entorno que el del usuario que ejecuta sandbox, y tiene el `PATH` para que ejecutar binario sea más cómodo.
+
+Para la siguiente sesión debería de hacer que no haga falta usar sudo para ejecutar `sandbox` con los namespaces.
