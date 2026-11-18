@@ -7,6 +7,9 @@
 // Functions to make your life easier by dealing with POSIX
 namespace psx {
 
+// Bit that returns ptrace when it intercepts a sys call
+constexpr int TRACE_IS_GOOD_BIT = 0x80;
+
 // reads chars from RAM directions
 std::string readStringFromProcess(pid_t pid, std::uint64_t address,
                                   std::size_t max_len = PATH_MAX);
@@ -14,7 +17,13 @@ std::string readStringFromProcess(pid_t pid, std::uint64_t address,
 // launch a stopped process, ready for tracing
 pid_t launchProcess(const char *filename, char *const argv[]);
 
-inline void resumeProcess(pid_t pid) {
-  ptrace(PTRACE_SYSCALL, pid, nullptr, nullptr);
+inline void resumeProcess(pid_t pid, int signal = 0) {
+  ptrace(PTRACE_SYSCALL, pid, nullptr, reinterpret_cast<void *>(signal));
 }
+
+// every possible meaning of a waitpid status for a traced process
+enum class StopKind { Ended, PtraceEvent, SyscallStop, SignalDelivery };
+
+// return a StopKind value depending of the status of the process event
+StopKind classifyStop(int status);
 } // namespace psx

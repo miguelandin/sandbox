@@ -1,9 +1,11 @@
-27/10/26
+*27*/10/26
 Se ha creado la estructura básica del proyecto, con un `.gitignore` y `Makefile`. La estructura usa la estándar usando directorios `bin/`, `obj/`, `include/` y `src/`.
 
+---
 28/10/26
 Se ha configurado un .`gitignore` y un `Makefile` automatizado con reglas estrictas de compilación. Se ha iniciado la Fase 1 implementando el esqueleto de `main.cpp`. El proceso padre ya es capaz de usar `fork()` y `execve()` para ejecutar binarios, y se ha añadido el bucle inicial de intercepción con ptrace.
 
+---
 21/11/26
 Se ha cambiado por completo el código original. Ahora `main.py` es mucho más simple y legible. También se ha creado una variable `*envp` para el `execve` la cual contiene el `$PATH` y el directorio `/tmp`.
 Además, las flags de sandbox pueden ser depuradas correctamente para que en el futuro se puedan manejar.
@@ -12,6 +14,7 @@ Finalmente se ha investigado como funciona `ptrace` y como se complementa con `w
 
 Con todo esto se ha dejado el bucle de intercepciones listo y comprobado para analizar el binario malicioso.
 
+---
 25/11/26
 Hoy se ha investigado como poder traducir las llamadas traducidas por `ptrace`. Para poder hacerlo, hay que hacer los siguientes pasos:
 1. Creamos una variable de tipo struct llamada `user_regs_struct`. Esta variable contiene una copia del estado de todos los registros de la CPU del proceso que estamos analizando. Esto nos servirá para numerosas acciones más adelante.
@@ -26,7 +29,7 @@ También se ha creado una función llamada `read_string_from_process` la cual me
 
 Finalmente, el código está siendo un main demasiado largo en el que no se entiende casi nada para alguien que nunca haya visto el código por lo que para futuras sesiones voy a refactorizar el proyecto: Pondré cabeceras en el directorio `include`. Aún no tengo muy claro que haré pero, se me ocurre de primeras, crear un archivo que contenga funciones auxiliares y crear una clase llamada `tracer` que haga toda la lógica de mirar el proceso malicioso. En el main sería tan simple como hacer `tracer.run()`. También sería buena idea que este `.run()`, en vez de hacer prints, devuelva strings para luego hacer diversas cosas con ellos: Imprimirlos y guardarlos en logs.
 
-
+---
 02/11/26
 Hoy se ha fragmentado en varios archivos:
 - **`MemoryUtils`**:  Contendrá funciones auxiliares sobre sobre la memoria del proceso.
@@ -37,6 +40,7 @@ De la clase **`Tracer`**, se está usando un `std::unique_ptr<ArchHandler>` aunq
 
 Para la siguiente sesión debería implementar está fragmentación de código en el `main.cpp`, el cual de momento no a sido cambiado.
 
+---
 04/11/26
 Después de investigar sobre `ptrace`, he visto que no hace falta implementar nada de polimorfismo de clases con `ArchHandler`, ya que `ptrace` ya tiene una función que saca las llamada de sistema sobre cualquier arquitectura con el mismo output: 
 ```c++
@@ -53,6 +57,7 @@ Para manager las señales se hace accediendo al siguiente atributo: `sys_info.op
 
 Para la siguiente sesión, se eliminarán las clases de `ArchHandler` y terminará la clase `Tracer`.
 
+---
 06/11/26
 He estado implementado el nuevo descubrimiento de `<linux/ptrace.h>` el cual tiene el struct de `syscall_info` tan útil, pero me he topado con un problema que resulta ser bastante común: Las librerías `<sys/ptrace.h>` y `<linux/ptrace.h>`. Esto se debe a que son entidades separadas: Las librerías de `<linux/>` son de la API de Linux los cuales están mas actualizados que las librerías de `<sys>` que son del [C stándar](https://www.open-std.org/jtc1/sc22/wg14/).
 
@@ -76,3 +81,23 @@ Finalmente, tras estar todo el día programando esto, el `main.cpp`  es legible.
 3. El `Makefile` lo he revertido a su versión antigua ya que no usaré nada de manejar el Arch.
 
 4. El main ha sido simplificado: Ahora solo se maneja las flags (que podría meterlo en otra función aparte pero me parecería innecesario); se instancia la clase Tracer y se llama la función `run()` con una lambda temporal creada para ver la salida.
+
+---
+18/11/26
+Hoy he refactorizado la clase `Tracer` ya que tenía varios problemas con el manejo de procesos hijos del binario malicioso:
+1. En la versión antigua, si el binario malicioso ejecutaba un `fork()` o `clone()` y terminaba el proceso padre, `sandbox` daba por terminada la ejecución y estos procesos hijos seguirían ejecutándose sin supervisión.  Para solucionar esto he puesto opciones extra a `ptrace`; `PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE | PTRACE_O_TRACEVFORK`, además de que `waitpid` tiene nuevos argumentos; `waitpid(-1, &m_status, __WALL)`. Con estos parámetros el kernel analizará también los procesos hijos para que podamos vigilaros en el bucle while hasta que mueran (`ECHILD`).
+
+2. Ahora, si matas el proceso de `sandbox`, con el nuevo option `PTRACE_O_EXITKILL`, garantizamos que al morir, también mueran todo los hijos que estaba trazando.
+
+3. Antes `psx::resumeProcess` mandaba al proceso parado la señal 0 en el cuarto parámetro, haciendo que que olvidara cualquier señal enviada al proceso originalmente. Para solucionar esto he hecho varios cambios; Primero la propia función, ahora recibe dos parámetros, el `pid` y la señal que manda `signal=0` para que dependiendo del caso, mande 0 o las señales que queden por mandar. También en `PosixUtils` he creado una `struc enum` que enumera los 4 tipos de señales que da `waitpid` que son importantes para `ptrace`;
+
+```C++
+enum class StopKind {
+Ended, /* exited or killed: never resume it */
+PtraceEvent, /* fork / vfork / clone / exec / first stop of a new child */ SyscallStop, /* syscall entry or exit (SIGTRAP | 0x80) */
+SignalDelivery /* a real signal for the tracee: must be re-injected }; */
+```
+
+3. Esta clase se usa en una nueva función `StopKind classifyStop(int status)` que nos hará el trabajo de parsear las 4 situaciones que se pueden dar dependiendo del resultado de `waitpid`. Estas situaciones se pasan finalmente en un switch en el cual, si se se da el caso de `psx::StopKind::SyscallStop` se ejecutará el antiguo switch de la versión anterior que manejaba el `PTRACE_SYSCALL_INFO_ENTRY`. En el caso de que se diera `SignalDelivery` (señales para el proceso que necesita) se llama a `psx::resumeProcess` con el parámetro `signal=WSTOPSIG(m_status)` para que pueda continuar su correcto funcionamiento.
+
+Con todos estos arreglos `sandbox` es ahora capaz de detectar subprocesos del proceso malicioso. Lo siguiente que debería de hacer sería simplificar más la función `run` del `Tracer` y también tengo que mirar si debería de usar `std::uint_64t` o `usigned long` por temas de compatibilidad con distintas arquitecturas.

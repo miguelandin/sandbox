@@ -1,5 +1,6 @@
 #include "PosixUtils.hpp"
 #include <csignal>
+#include <cstdlib>
 #include <sys/wait.h>
 #include <vector>
 
@@ -53,4 +54,17 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments) {
     return pid;
   }
   return -1;
+}
+
+psx::StopKind psx::classifyStop(int status) {
+  if (WIFEXITED(status) || WIFSIGNALED(status)) {
+    return psx::StopKind::Ended;
+  }
+  if((status >> 16) != 0){
+    return psx::StopKind::PtraceEvent;
+  }
+  if (WSTOPSIG(status) == (SIGTRAP | psx::TRACE_IS_GOOD_BIT)) {
+    return psx::StopKind::SyscallStop;
+  }
+  return psx::StopKind::SignalDelivery;
 }
