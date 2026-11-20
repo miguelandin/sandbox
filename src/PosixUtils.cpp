@@ -50,6 +50,8 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
     }
 
     raise(SIGSTOP);
+
+    // Implement mountFakeVol() here
     execvp(binaryPath, arguments);
 
     std::perror("execve execution failed");

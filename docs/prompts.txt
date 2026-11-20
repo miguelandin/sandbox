@@ -71,3 +71,21 @@ Está aquí la tarjeta de red creada con CLONE_NEWNET?
 voy a cambiar envp para que tenga el mismo enviroment que un proceso normal. De todas formas no le veo el sentido de aplicar estos bloqueos si ya tengo el Linux Namespace para eso y lo único que hace es hacer más molesto el uso de sandbox.
 execve(binaryPath, arguments, environ); Con esto debería de bastar verdad? Entonces ya podría hacer ./bin/sandbox ls en vez de ./bin/sandbox /bin/ls?
 Genial. Que bien. Vale ahora quiero hacer que no haga falta sudo para usar sandbox. Que tenía que hacer paso por paso?
+Entonces vamos buscar el proceso que sale con su pid y vamos ha hacer que piense que tiene el uid de quien lo ejecutó para que intente hacer cosas pero en realidad tiene el uid 65534 y por tanto no podrá hacer acciones peligrosas.
+Vale. Explica línea por línea la función que te mandé que hace este proceso de cambiar proc/
+Y no existe una función que ya haga esto? me parece raro estar tocando archivos y metiendo strings. 
+Acabas de decir que la función ushare ya hace esto?
+Tendría sentido dar la opción de ejecutar sandbox sin el namespace CLONE_NEWUSER?
+Donde debería de ir este mapUserNamespace? justo despúes de unsahre() y antes de raise(STOP)?
+Que te parece? Es buena idea usar auto en vez de std::string? el compilador nunca se confunde no? Por algun motivo sigue dando nobody.
+Qué es lo siguiente que tengo que hacer.
+Tenía pensado algo como que el proceso piense que pueda escribir archivos pero en realidad los escribe en /tmp para ver que cosas ha dejado.
+Esta función mountOverlay iría justo antes de excev?
+Con esto el proceso pensará que estará escribiendo por ejemplo en /home pero en realidad está escribiendo en /tmp/<path>. Además, si quisiera el mismo proceso leer de donde cree que lo dejó, en /home, seguiría funcionando?
+Esto que vamos a implementar se podría considerar un hito nuevo?
+seccopmp  que era?
+Vale genial. aunque vayamos ha hacer lo de montar en /tmp un directorio falso donde escriban los procesos, seccomp también se seguirá usando.
+Que cosas vamos a bloquear con seccomp exactamente
+La clase Tracer con ptrace podrá saber que el binario intentó hacer ciertas cosas aunque seccomp las bloquee? Como es eso? porque el propio seccomp avisa o porque la instrucción bloqueada sigue siendo detectada por ptrace con waitpid.
+Que conveniente, parece que está pensado para usarse así junto a ptrace. Otra cosa, si ptrace detecta instrucción de escritura, también podría ver con readStringFromProcess que iba a escribir no? Lo mismo si el proceso iba ha hacer una conexión internet, podrías ver la url o ip.
+Para terminar esta conversación quiero que escribas un lista de los pasos que tengo que hacer para aplicar lo que hemos hablado sobre seccomp y montar un directorio falso.
