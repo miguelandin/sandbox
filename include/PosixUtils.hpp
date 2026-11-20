@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <linux/limits.h>
 #include <string>
+#include <unistd.h>
 
 // Functions to make your life easier by dealing with POSIX
 namespace psx {
@@ -26,4 +27,8 @@ enum class StopKind { Ended, PtraceEvent, SyscallStop, SignalDelivery };
 
 // return a StopKind value depending of the status of the process event
 StopKind classifyStop(int status);
+
+bool mapUserNamespace(pid_t pid, uid_t uid, gid_t gid);
+
+bool writeProcFile(const std::string &path, const std::string &content);
 } // namespace psx

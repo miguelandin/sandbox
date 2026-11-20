@@ -1,9 +1,12 @@
 #include "PosixUtils.hpp"
 #include <csignal>
 #include <cstdlib>
+#include <fcntl.h>
+#include <fstream>
 #include <sched.h>
+#include <string>
 #include <sys/wait.h>
-#include <vector>
+#include <unistd.h>
 
 std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
                                        std::size_t max_len) {
@@ -56,6 +59,12 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
   int status;
   waitpid(pid, &status, WUNTRACED);
   if (WIFSTOPPED(status)) {
+    if ((nmFlags & CLONE_NEWUSER) != 0) {
+      if (!psx::mapUserNamespace(pid, getuid(), getgid())) {
+        std::perror("mapUserNamespace execution failed");
+        _exit(1);
+      }
+    }
     return pid;
   }
   return -1;
@@ -72,4 +81,36 @@ psx::StopKind psx::classifyStop(int status) {
     return psx::StopKind::SyscallStop;
   }
   return psx::StopKind::SignalDelivery;
+}
+
+bool psx::mapUserNamespace(pid_t pid, uid_t uid, gid_t gid) {
+  auto path = "/proc/" + std::to_string(pid);
+
+  if (!psx::writeProcFile(path + "/setgroups", "deny")) {
+    return false;
+  }
+
+  auto uMapContent = std::to_string(uid) + " " + std::to_string(uid) + " 1\n";
+  auto gMapContent = std::to_string(gid) + " " + std::to_string(gid) + " 1\n";
+  return psx::writeProcFile(path + "/uid_map", uMapContent) &&
+         psx::writeProcFile(path + "/gid_map", gMapContent);
+}
+
+bool psx::writeProcFile(const std::string &path, const std::string &content) {
+  int proc = open(path.c_str(), O_WRONLY);
+  if (proc == -1) {
+    std::perror(("open failed: " + path).c_str());
+    return false;
+  }
+
+  auto written = write(proc, content.data(), content.size());
+  if (written == -1) {
+    std::perror(
+        ("write failed: " + path + " with content: " + content).c_str());
+    close(proc);
+    return false;
+  }
+
+  close(proc);
+  return true;
 }

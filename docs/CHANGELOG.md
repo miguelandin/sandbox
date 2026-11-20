@@ -121,3 +121,16 @@ google.com: Temporary failure in name resolution1
 Finalmente, como se están usando Linux Namespaces a partir de ahora, no veo la necesidad de crear a mano la variable `envp` para limitar lo que el proceso puede ver. Por esto mismo he cambiado la función `execve` por `execvp` la cual es exactamente igual que este pero usar de variable de entorno `environ`, el cual el es mismo entorno que el del usuario que ejecuta sandbox, y tiene el `PATH` para que ejecutar binario sea más cómodo.
 
 Para la siguiente sesión debería de hacer que no haga falta usar sudo para ejecutar `sandbox` con los namespaces.
+
+---
+20/11/26
+Hoy he mejorado la función `launchProcess`: Antes se necesitaba root para ejecutar `sandbox` ya que el kernel pide permisos de root para crear namespaces, a no ser que uses la flag `CLONE_NEWUSER`. Esta flag hace pensar al proceso maliciosos se está ejecutando como el user nobody (65534) el cual no tiene permisos para casi nada. En principio con este cambio ya no necisitarías usar sudo para cada uso de sandbox y aisla al proceso a un usuario sin permisos pero he sería mejor que el proceso sepa que usuario lo ejecutó (uid) para que intente hacer acciones y poder investigar. De todas formas aunque se ejecuta como tu usuario, en principio no debería de poder tus archivos ya que se usaría por defecto la flag `CLONE_NEWNS`. Además, podríamos hacer que el proceso piense que se esté ejecutando como root aunque no lo sea para ver que acciones tomaría.
+
+Para hacer que el proceso sepa con qué usuario se está ejecutando hay que editar ciertos valores de archivos en el directorio `/proc/<pid>/`. Al editar estos archivos no se está realmente guardando texto en ninguna parte del SO, en realidad está enviando señales al kernel para traducir las tablas de traducción del proceso malicioso.
+
+He creado dos funciones nuevas en `PosixUtils` para editar estos archivos:
+- `writeProcFile`: Abre cierto archivo y pone el contenido. Antes, en vez de usar esta función, usaba `std::ofstream` pero me ví limitado ya que no podía manejar errores y ser tan exacto que con las funcines POSIX de open() write(), a sí que al final he creado esta función que hacía fácil el escribir en los ficheros de proc y manejar errores.
+
+- `mapUserNamespace`: Primero intenta deshabilitar la llamada al sistema `setgroups()` para poder editar posteriormente los ficheros `uid_map` y `gid_map` (los que hace ver el usuario y grupo al proceso). Dependiendo de si la escritura ha sido exitosa o no, devolverá un booleano que se usará para parar el problema en caso de fallo en la función `psx::launchProcess`.
+
+Con esta sesión he aprendido bastante como funciona la comunicación de los procesos con el kernel usando ficheros. Al principio me parecia que esta solución era chapucera ya que se estaban ejecutando procesos durante la ejecución y poniendo strings a mano, pero resulta que es la forma en la que se hace estas cosas.
