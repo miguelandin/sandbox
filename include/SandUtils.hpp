@@ -8,17 +8,16 @@
 namespace snd {
 constexpr std::uint8_t NETWORK = 1u << 0;
 constexpr std::uint8_t READ = 1u << 1;
-constexpr std::uint8_t SWRITE = 1u << 2;
-constexpr std::uint8_t FWRITE = 1u << 3;
-constexpr std::uint8_t USER = 1u << 4;
-constexpr std::uint8_t EXEC = 1u << 5;
+constexpr std::uint8_t WRITE = 1u << 2;
+constexpr std::uint8_t USER = 1u << 3;
+constexpr std::uint8_t EXEC = 1u << 4;
 
+// manage flags in a standard way
 class Flags {
 public:
   bool network = false; // -n
   bool read = false;    // -r
-  bool swrite = false;  // -w
-  bool fwrite = false;  // -W
+  bool write = false;   // -w
   bool user = false;    // -u
   bool exec = false;    // -e
   int nmflags = 0;
@@ -27,8 +26,10 @@ public:
   std::string toString() const;
 };
 
+// convert argv into Flags options
 std::uint8_t argsToFlags(int &i, int argc, char *argv[]);
 
+// convert char into Flag option bit
 std::uint8_t letterToBit(char letter);
 
 } // namespace snd

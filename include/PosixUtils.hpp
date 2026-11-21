@@ -1,12 +1,13 @@
 #pragma once
 #include "KernelAbi.hpp"
+#include "SandUtils.hpp"
 #include <cstdint>
 #include <initializer_list>
 #include <linux/limits.h>
 #include <optional>
-#include <span>
 #include <string>
 #include <string_view>
+#include <sys/mount.h>
 #include <unistd.h>
 
 // Functions to make your life easier by dealing with POSIX
@@ -20,7 +21,8 @@ std::string readStringFromProcess(pid_t pid, std::uint64_t address,
                                   std::size_t max_len = PATH_MAX);
 
 // launch a stopped process, ready for tracing
-pid_t launchProcess(const char *filename, char *const argv[], int nmFlags);
+pid_t launchProcess(const char *filename, char *const argv[],
+                    const snd::Flags &flags);
 
 inline void resumeProcess(pid_t pid, int signal = 0) {
   ptrace(PTRACE_SYSCALL, pid, nullptr, reinterpret_cast<void *>(signal));
@@ -42,13 +44,26 @@ bool writeProcFile(const std::string &path, const std::string &content);
 std::optional<std::string> makeTempDir();
 
 // create dirs with perm 0700 in base dir
-bool makeSubDirs(const std::string base,
+bool makeSubDirs(const std::string &base,
                  std::initializer_list<std::string_view> dirs = {
                      "root", "upper", "work"});
+
+std::optional<std::string> makeFakeEnviroment();
 
 // create an overlay file system
 bool mountOverlay(const std::string &base, const std::string &upper = "upper",
                   const std::string &work = "work",
                   const std::string &merged = "root",
                   const std::string &lower = "/");
+
+// makes the mount of the process private, making it blind to the rest of mounts
+bool privateMount();
+
+// change the root dir of the process to path
+bool changeRoot(const std::string &path);
+
+// trick process into an isolated enviroment in /tmp/sandbox_
+bool setFakeEnviroment(const std::string &base,
+                       const ::std::string &root = "root");
+
 } // namespace psx

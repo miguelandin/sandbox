@@ -5,12 +5,12 @@
 #include <sched.h>
 
 snd::Flags::Flags(std::uint8_t o)
-    : network(o & NETWORK), read(o & READ), swrite(o & SWRITE),
-      fwrite(o & FWRITE), user(o & USER), exec(o & EXEC) {
+    : network(o & NETWORK), read(o & READ), write(o & WRITE), user(o & USER),
+      exec(o & EXEC) {
   if (!network) {
     nmflags |= CLONE_NEWNET;
   }
-  if (!fwrite) {
+  if (!write) {
     nmflags |= CLONE_NEWNS;
   }
   if (!user) {
@@ -47,9 +47,7 @@ std::uint8_t snd::letterToBit(char letter) {
   case 'r':
     return READ;
   case 'w':
-    return SWRITE;
-  case 'W':
-    return FWRITE;
+    return WRITE;
   case 'u':
     return USER;
   case 'e':
@@ -63,7 +61,6 @@ std::uint8_t snd::letterToBit(char letter) {
 }
 
 std::string snd::Flags::toString() const {
-  return std::format(
-      "network={},read={},swrite={},fwrite={},user={},exec={},nmflags={}",
-      network, read, swrite, fwrite, user, exec, nmflags);
+  return std::format("network={},read={},write={},user={},exec={},nmflags={}",
+                     network, read, write, user, exec, nmflags);
 }

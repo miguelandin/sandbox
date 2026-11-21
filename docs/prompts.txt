@@ -105,3 +105,23 @@ No puedo hacer std::string path = base + "/" + dir; si dir es un basic_string_vi
 El format es la polla, ¿no? es mucho más seguro que sumar strings no te parece? debería poner eso mismo también aqui no te parece.
 No están bien creado los permisos no te parece? 
 existe un std::format que haga lo contrario? leer lo que está entre llaves y sacarlas como variables. Sería literalmente esto std::sscanf(arg.c_str(), "off{%f,%f}", &x, &y) ¿no? 
+mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) Que hace esto?
+Por qué es necesario hacer esto? es que unshare(CLONE_NEWNS) no es suficiente?
+→ Lo que hacemos con este mount es que el montaje creado por el hijo sea ciego con el resto del sistema, además de no dejar resuidos. La función mount() la debe de ejecutar el hijo verdad?
+De qué librería es mount? hacer este mount solo tendría sentido cuando esté presente la flag CLONE_NEWNS verdad?
+En c++, todo distinto de 0 es true → puedo quitar todos los ifs que pongan != 0 verdad?
+mount("overlay", mergedPath, "overlay", 0, options) Este mount iría justo después del mount anterior si está presenta la flag -w (no la -W) verdad? mergedPath que sería? y options?
+mergedDir sería /tmp/sandbox_XXXXX ?
+Y lower dir sería el root de verdad para que pueda ver librería y tal?
+mount devuelve 0 en caso de éxito y -1 en error → !-1 sería false y !0 sería true?
+A la hora de poner lowerdir upperdir workdir... tengo que poner la ruta completa?
+Cómo creo esas variables que son bits?
+using bit = constexpr std::uint8_t; no puedo hacer esto?
+Estoy creando un nuevo namespace para manejar el parseo de flags del main más cómodo: He encontrado ciertos problemas usando simplemente las flags de los linux namespace para hacer ciertas acciones a sí que he decido crear la clase flags para tratar mas casos de forma más cómoda. Como lo ves? Me estoy dejando algún caso verdad? Tengo un poco de lío con la flag de lectura, no sé si cuando está lectura debería de seguir creando el CLONE_NEWNM.
+Cómo funcionan los argv? está bien implementado?
+En c++ como sería el equivalente de una función toString de java?
+Esto lo podría convertir en un std::tuple. Que ventajas obtendría? 
+Cual es el equivalente de un std::uint8_t con todo 11111111?
+Cual es la diferencia entre _exit std::exit y exit?
+Osea que use _exit solo dentro del fork hijo.
+me parece que no tiene sentido el boolean swrite, debería ser simplemente la opción por defecto y ya está ya que me sería contraproducente si por defecto no podría el proceso escribir en un entorno completamente controlado en el que podría ver que hace verdad?

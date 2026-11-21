@@ -45,26 +45,32 @@ std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
 }
 
 pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
-                         int nmFlags) {
+                         const snd::Flags &flags) {
+
+  auto tmp = psx::makeFakeEnviroment();
+  if (!flags.write) {
+    if (!tmp) {
+      std::exit(1);
+    }
+  }
+
   pid_t pid = fork();
 
   if (pid == 0) {
-    if (unshare(nmFlags) == -1) {
+    if (unshare(flags.nmflags) == -1) {
       std::perror("unshare execution failed");
       _exit(1);
     }
 
     raise(SIGSTOP);
 
-    if (nmFlags & CLONE_NEWNS) {
-      if (mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) == 0) {
+    if (!flags.write) {
+      if (!psx::setFakeEnviroment(*tmp)) {
         _exit(1);
       }
-      psx::mountOverlay("hola");
     }
-    // TODO Implement mountFakeVol() here
-    execvp(binaryPath, arguments);
 
+    execvp(binaryPath, arguments);
     std::perror("execve execution failed");
     _exit(127);
   }
@@ -72,23 +78,12 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
   int status;
   waitpid(pid, &status, WUNTRACED);
   if (WIFSTOPPED(status)) {
-    if (nmFlags & CLONE_NEWNS) {
-      auto tmp = psx::makeTempDir();
-      if (!tmp) {
-        std::perror("makeTempDir execution failed");
-        std::exit(1);
-      }
-
-      if (!psx::makeSubDirs(*tmp)) {
-        std::exit(1);
-      }
-    }
-    if (nmFlags & CLONE_NEWUSER) {
+    if (!flags.user) {
       if (!psx::mapUserNamespace(pid, getuid(), getgid())) {
-        std::perror("mapUserNamespace execution failed");
         std::exit(1);
       }
     }
+
     return pid;
   }
   return -1;
@@ -111,6 +106,7 @@ bool psx::mapUserNamespace(pid_t pid, uid_t uid, gid_t gid) {
   auto path = std::format("/proc/{}", pid);
 
   if (!psx::writeProcFile(std::format("{}/setgroups", path), "deny")) {
+    std::perror("mapUserNamespace execution failed");
     return false;
   }
 
@@ -149,7 +145,7 @@ std::optional<std::string> psx::makeTempDir() {
   return std::nullopt;
 }
 
-bool psx::makeSubDirs(const std::string base,
+bool psx::makeSubDirs(const std::string &base,
                       std::initializer_list<std::string_view> dirs) {
   for (const auto &dir : dirs) {
     auto path = std::format("{}/{}", base, dir);
@@ -161,9 +157,18 @@ bool psx::makeSubDirs(const std::string base,
   return true;
 }
 
-bool psx::mountOverlay(const std::string &lower, const std::string &upper,
+std::optional<std::string> psx::makeFakeEnviroment() {
+  std::optional<std::string> env;
+  if (env = psx::makeTempDir(); env) {
+    psx::makeSubDirs(*env);
+  }
+
+  return env;
+}
+
+bool psx::mountOverlay(const std::string &base, const std::string &upper,
                        const std::string &work, const std::string &merge,
-                       const std::string &base) {
+                       const std::string &lower) {
   auto upperdir = std::format("{}/{}", base, upper);
   auto mergedir = std::format("{}/{}", base, merge);
   auto workdir = std::format("{}/{}", base, work);
@@ -176,4 +181,31 @@ bool psx::mountOverlay(const std::string &lower, const std::string &upper,
   }
 
   return true;
+}
+
+bool psx::privateMount() {
+  if (mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) == -1) {
+    std::perror("privateMount failed");
+    return false;
+  }
+  return true;
+}
+
+bool psx::changeRoot(const std::string &jailPath) {
+  if (chroot(jailPath.c_str()) == -1) {
+    std::perror("chroot failed");
+    return false;
+  }
+
+  if (chdir("/") == -1) {
+    std::perror("chdir failed");
+    return false;
+  }
+
+  return true;
+}
+
+bool psx::setFakeEnviroment(const std::string &base, const std::string &root) {
+  return privateMount() && mountOverlay(base) &&
+         changeRoot(std::format("{}/{}", base, root));
 }
