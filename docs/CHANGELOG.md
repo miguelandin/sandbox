@@ -134,3 +134,7 @@ He creado dos funciones nuevas en `PosixUtils` para editar estos archivos:
 - `mapUserNamespace`: Primero intenta deshabilitar la llamada al sistema `setgroups()` para poder editar posteriormente los ficheros `uid_map` y `gid_map` (los que hace ver el usuario y grupo al proceso). Dependiendo de si la escritura ha sido exitosa o no, devolverá un booleano que se usará para parar el problema en caso de fallo en la función `psx::launchProcess`.
 
 Con esta sesión he aprendido bastante como funciona la comunicación de los procesos con el kernel usando ficheros. Al principio me parecia que esta solución era chapucera ya que se estaban ejecutando procesos durante la ejecución y poniendo strings a mano, pero resulta que es la forma en la que se hace estas cosas.
+
+---
+21/11/26
+Resulta que existe una función llamada `std::format()` que hace básicamente lo que haría en python un string que empieza por `f""`. Menos mal que Gemini ha decidido contarle, le ha costado. Con esta función ya no se montaran más string usando operandos, lo cual me parecía muy chapucero. Además el propio `format` ya hace la conversión de tipos a string, a sí que nada más de `std::to_string()`. Finalmente, con el nuevo uso de format, el código será mucho más seguro ya que se evitan problemas de tipos en tiempo de compilación y, tiene un rendimiento mucho mayor que usar operadores ya que no tiene que crear varios strings separados y por tanto, solo reserva memoria en el heap una vez.

@@ -1,10 +1,14 @@
 #include "PosixUtils.hpp"
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <fcntl.h>
-#include <fstream>
+#include <format>
+#include <optional>
 #include <sched.h>
 #include <string>
+#include <string_view>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -86,16 +90,16 @@ psx::StopKind psx::classifyStop(int status) {
 }
 
 bool psx::mapUserNamespace(pid_t pid, uid_t uid, gid_t gid) {
-  auto path = "/proc/" + std::to_string(pid);
+  auto path = std::format("/proc/{}", pid);
 
-  if (!psx::writeProcFile(path + "/setgroups", "deny")) {
+  if (!psx::writeProcFile(std::format("{}/setgroups", path), "deny")) {
     return false;
   }
 
-  auto uMapContent = std::to_string(uid) + " " + std::to_string(uid) + " 1\n";
-  auto gMapContent = std::to_string(gid) + " " + std::to_string(gid) + " 1\n";
-  return psx::writeProcFile(path + "/uid_map", uMapContent) &&
-         psx::writeProcFile(path + "/gid_map", gMapContent);
+  auto uMapContent = std::format("{} {} 1\n", uid, uid);
+  auto gMapContent = std::format("{} {} 1\n", gid, gid);
+  return psx::writeProcFile(std::format("{}/uid_map", path), uMapContent) &&
+         psx::writeProcFile(std::format("{}/gid_map", path), gMapContent);
 }
 
 bool psx::writeProcFile(const std::string &path, const std::string &content) {
@@ -108,11 +112,33 @@ bool psx::writeProcFile(const std::string &path, const std::string &content) {
   auto written = write(proc, content.data(), content.size());
   if (written == -1) {
     std::perror(
-        ("write failed: " + path + " with content: " + content).c_str());
+        (std::format("write failed: {}, with content: {}", path, content)
+             .c_str()));
     close(proc);
     return false;
   }
 
   close(proc);
+  return true;
+}
+
+std::optional<std::string> psx::makeTempDir() {
+  std::string dir = "/tmp/sandbox_XXXXXX";
+  if (mkdtemp(dir.data())) {
+    return dir;
+  }
+  std::perror("mktemp failed");
+  return std::nullopt;
+}
+
+bool psx::makeSubDirs(const std::string base,
+                      std::initializer_list<std::string_view> dirs) {
+  for (const auto &dir : dirs) {
+    auto path = std::format("{}/{}", base, dir);
+    if (mkdir(path.c_str(), 0700) == -1) {
+      std::perror(std::format("mkdir failed: {}", path).c_str());
+      return false;
+    }
+  }
   return true;
 }

@@ -2,10 +2,10 @@
 #include "Tracer.hpp"
 #include <iostream>
 #include <sched.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
-  auto nmflags =
-      CLONE_NEWNET | CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWTIME;
+  auto nmflags = CLONE_NEWNET | CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID;
   int i = 1;
 
   while (i < argc) {
@@ -16,18 +16,29 @@ int main(int argc, char *argv[]) {
 
     switch (flag[1]) {
     case 'i': {
-      nmflags = nmflags ^ CLONE_NEWNET;
+      nmflags ^= CLONE_NEWNET;
       break;
     }
     case 'r': {
     case 'w': {
-      nmflags = nmflags ^ CLONE_NEWNS;
+      nmflags ^= CLONE_NEWNS;
       break;
     }
+    }
+    case 'p': {
+      nmflags ^= CLONE_NEWPID;
+      break;
+    }
+    case 'u': {
+      nmflags ^= CLONE_NEWUSER;
     }
     }
 
     i++;
+  }
+
+  if (auto tmp = psx::makeTempDir(); tmp) {
+    psx::makeSubDirs(*tmp, {"root", "upper", "work"});
   }
 
   Tracer tracer(psx::launchProcess(argv[i], argv + i, nmflags));

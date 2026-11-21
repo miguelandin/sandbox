@@ -1,8 +1,12 @@
 #pragma once
 #include "KernelAbi.hpp"
 #include <cstdint>
+#include <initializer_list>
 #include <linux/limits.h>
+#include <optional>
+#include <span>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 
 // Functions to make your life easier by dealing with POSIX
@@ -28,7 +32,15 @@ enum class StopKind { Ended, PtraceEvent, SyscallStop, SignalDelivery };
 // return a StopKind value depending of the status of the process event
 StopKind classifyStop(int status);
 
+// change process uid and gid
 bool mapUserNamespace(pid_t pid, uid_t uid, gid_t gid);
 
+// write instructions in the process map
 bool writeProcFile(const std::string &path, const std::string &content);
+
+// create a dir in /tmp
+std::optional<std::string> makeTempDir();
+
+bool makeSubDirs(const std::string base,
+                 std::initializer_list<std::string_view> dirs);
 } // namespace psx

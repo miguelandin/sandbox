@@ -88,4 +88,20 @@ Vale genial. aunque vayamos ha hacer lo de montar en /tmp un directorio falso do
 Que cosas vamos a bloquear con seccomp exactamente
 La clase Tracer con ptrace podrá saber que el binario intentó hacer ciertas cosas aunque seccomp las bloquee? Como es eso? porque el propio seccomp avisa o porque la instrucción bloqueada sigue siendo detectada por ptrace con waitpid.
 Que conveniente, parece que está pensado para usarse así junto a ptrace. Otra cosa, si ptrace detecta instrucción de escritura, también podría ver con readStringFromProcess que iba a escribir no? Lo mismo si el proceso iba ha hacer una conexión internet, podrías ver la url o ip.
-Para terminar esta conversación quiero que escribas un lista de los pasos que tengo que hacer para aplicar lo que hemos hablado sobre seccomp y montar un directorio falso.
+Para terminar esta conversación quiero que escribas un lista de los pasos que tengo que hacer para aplicar lo que hemos hablado sobre seccomp y montar un directorio false.
+Qué valores tengo que pasarle a mkdtemp?
+Cual es la diferencia entre .data() y .c_str() ?
+Csando mkdtemp() funciona .data() pero no .c_str(). ¿Por qué?
+Y como es que un puntero constante al string no permite cambiar sus valores? si tienes la dirección puedes cambiar el char no?
+puedo convertir un *char a std::string?
+std::optional<std::string> psx::makeFakeDir() { std::string dir = "tmp/sandbox_XXXXXX"; auto tmpDir = mkdtemp(dir.data()); if (tmpDir != nullptr) { return tmpDir;}} Puedo hacer esto? 
+Si devolviera nullptr eso contaría como valor para optional?
+Este if está bien verdad? cuando es nullptr cuenta como 0.
+En el directorio creado el directorio /tmp/sandbox_XXXXXX, como escribo dentro de el los tres subdirectorios necesarios? es usando mkdir()?
+Si ya hemos usado mkdtemp y open write, me parece más lógica para seguir la constancia usar mkdir().
+Estoy usando mal el std::span.
+Qué es un string_view? y un initializer_list?
+No puedo hacer std::string path = base + "/" + dir; si dir es un basic_string_view?
+El format es la polla, ¿no? es mucho más seguro que sumar strings no te parece? debería poner eso mismo también aqui no te parece.
+No están bien creado los permisos no te parece? 
+existe un std::format que haga lo contrario? leer lo que está entre llaves y sacarlas como variables. Sería literalmente esto std::sscanf(arg.c_str(), "off{%f,%f}", &x, &y) ¿no? 
