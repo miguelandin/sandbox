@@ -41,6 +41,14 @@ bool writeProcFile(const std::string &path, const std::string &content);
 // create a dir in /tmp
 std::optional<std::string> makeTempDir();
 
+// create dirs with perm 0700 in base dir
 bool makeSubDirs(const std::string base,
-                 std::initializer_list<std::string_view> dirs);
+                 std::initializer_list<std::string_view> dirs = {
+                     "root", "upper", "work"});
+
+// create an overlay file system
+bool mountOverlay(const std::string &base, const std::string &upper = "upper",
+                  const std::string &work = "work",
+                  const std::string &merged = "root",
+                  const std::string &lower = "/");
 } // namespace psx

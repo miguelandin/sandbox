@@ -8,6 +8,7 @@
 #include <sched.h>
 #include <string>
 #include <string_view>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -24,7 +25,7 @@ std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
     errno = 0;
     long word =
         ptrace(PTRACE_PEEKDATA, pid, reinterpret_cast<void *>(addr), nullptr);
-    if (errno != 0) {
+    if (errno) {
       return "";
     }
 
@@ -55,7 +56,13 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
 
     raise(SIGSTOP);
 
-    // Implement mountFakeVol() here
+    if (nmFlags & CLONE_NEWNS) {
+      if (mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) == 0) {
+        _exit(1);
+      }
+      psx::mountOverlay("hola");
+    }
+    // TODO Implement mountFakeVol() here
     execvp(binaryPath, arguments);
 
     std::perror("execve execution failed");
@@ -65,10 +72,21 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
   int status;
   waitpid(pid, &status, WUNTRACED);
   if (WIFSTOPPED(status)) {
-    if ((nmFlags & CLONE_NEWUSER) != 0) {
+    if (nmFlags & CLONE_NEWNS) {
+      auto tmp = psx::makeTempDir();
+      if (!tmp) {
+        std::perror("makeTempDir execution failed");
+        std::exit(1);
+      }
+
+      if (!psx::makeSubDirs(*tmp)) {
+        std::exit(1);
+      }
+    }
+    if (nmFlags & CLONE_NEWUSER) {
       if (!psx::mapUserNamespace(pid, getuid(), getgid())) {
         std::perror("mapUserNamespace execution failed");
-        _exit(1);
+        std::exit(1);
       }
     }
     return pid;
@@ -80,7 +98,7 @@ psx::StopKind psx::classifyStop(int status) {
   if (WIFEXITED(status) || WIFSIGNALED(status)) {
     return psx::StopKind::Ended;
   }
-  if ((status >> 16) != 0) {
+  if (status >> 16) {
     return psx::StopKind::PtraceEvent;
   }
   if (WSTOPSIG(status) == (SIGTRAP | psx::TRACE_IS_GOOD_BIT)) {
@@ -140,5 +158,22 @@ bool psx::makeSubDirs(const std::string base,
       return false;
     }
   }
+  return true;
+}
+
+bool psx::mountOverlay(const std::string &lower, const std::string &upper,
+                       const std::string &work, const std::string &merge,
+                       const std::string &base) {
+  auto upperdir = std::format("{}/{}", base, upper);
+  auto mergedir = std::format("{}/{}", base, merge);
+  auto workdir = std::format("{}/{}", base, work);
+  auto options = std::format("lowerdir={},upperdir={},workdir={},userxattr",
+                             lower, upperdir, workdir);
+
+  if (mount("overlay", mergedir.c_str(), "overlay", 0, options.c_str()) != 0) {
+    std::perror("failed to mount overlay");
+    return false;
+  }
+
   return true;
 }
