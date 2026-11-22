@@ -50,7 +50,7 @@ std::uint8_t snd::letterToBit(char letter) {
     return WRITE;
   case 'u':
     return USER;
-  case 'e':
+  case 'x':
     return EXEC;
   case 'A':
     return UINT8_MAX;

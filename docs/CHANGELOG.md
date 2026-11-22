@@ -138,3 +138,63 @@ Con esta sesión he aprendido bastante como funciona la comunicación de los pro
 ---
 21/11/26
 Resulta que existe una función llamada `std::format()` que hace básicamente lo que haría en python un string que empieza por `f""`. Menos mal que Gemini ha decidido contarle, le ha costado. Con esta función ya no se montaran más string usando operandos, lo cual me parecía muy chapucero. Además el propio `format` ya hace la conversión de tipos a string, a sí que nada más de `std::to_string()`. Finalmente, con el nuevo uso de format, el código será mucho más seguro ya que se evitan problemas de tipos en tiempo de compilación y, tiene un rendimiento mucho mayor que usar operadores ya que no tiene que crear varios strings separados y por tanto, solo reserva memoria en el heap una vez.
+
+Hoy he creado un namespace que va a ser super util: `snd` del archivo `SandUtils.hpp`. Este namespace sirve para hacer el parseo u uso de flags mucho más cómodo.
+Primero tenemos la clase Flags la cual tiene la siguiente estructura:
+```c++
+class Flags {
+public:
+  bool network = false; // -n
+  bool read = false;    // -r
+  bool write = false;   // -w
+  bool user = false;    // -u
+  bool exec = false;    // -x
+  int nmflags = 0;
+
+  Flags(std::uint8_t options = 0);
+  std::string toString() const;
+};
+```
+
+Con esta estructura, ver si sandbox le está otorgando algún recurso como internet es tan fácil como ver el boolean (`.network`). En el constructor he querido hacer algo más interesante, usando una máscara de bit como parámetro:
+
+```c++
+constexpr std::uint8_t NETWORK = 1u << 0;
+constexpr std::uint8_t READ = 1u << 1;
+constexpr std::uint8_t WRITE = 1u << 2;
+constexpr std::uint8_t USER = 1u << 3;
+constexpr std::uint8_t EXEC = 1u << 4;
+```
+
+No se si la verdad usar esto hace que sea más ligero o rápido instanciar la clase, pero me ha gustado implementarlo. Además, hay una variable `nmflags` el cual es el bitmap que usar el método `unshare()` para pasar sus flags. En el constructor de esta clase se crea también el bitmap de namespaces de la siguiente forma:
+
+```c++
+snd::Flags::Flags(std::uint8_t o)
+    : network(o & NETWORK), read(o & READ), write(o & WRITE), user(o & USER),
+      exec(o & EXEC) {
+  if (!network) {
+    nmflags |= CLONE_NEWNET;
+  }
+  if (!write) {
+    nmflags |= CLONE_NEWNS;
+  }
+  if (!user) {
+    nmflags |= CLONE_NEWUSER;
+  }
+  if (!exec) {
+    nmflags |= CLONE_NEWPID;
+  }
+}
+```
+
+Para poder hacer mas legible el parseo de flags a bits en el constructor de esta clase, he creado estas dos funciones: 
+- `snd::letterToBit(char letter)`: Recibe una letra (`w,r,x,n`) y devuelve su respectivo `std::uint_8` de los que hemos definido arriba.
+- `std::uint8_t snd::argsToFlags(int &i, int argc, char *argv[])`: Recibe los `argv` y los pasa uno a uno por dos bucles; Uno de palabra y otro de cada letra. Los chars pasaran por la función definida anterior y se sumará a la mascara de bits.
+
+En cuanto las flags, he puesto una nueva `-A` la cual ejecuta el proceso sin restricciones (a sí que tener cuidado usando esto) y he cambiado `-i` por `-n` ya que la palabra más apropiada sería "network", no "internet".
+
+---
+22/11/26
+Hoy ha sido un día de desarrollo muy duro y una pérdida de tiempo. Intenté implementar un entorno de trabajo completamente falso para el proceso malicioso: Este estaría montado en `/tmp/sandbox_XXXXXX`, el proceso pensaría que esta viendo y editando archivos del árbol real (desde root), pero en realidad siempre que escriba un archivo, se guardaría en `/tmp/sandbox_XXXXXX`. Tras unas 16 horas de programación he tenido que tirar la toalla. Me quede bastante cerca de lograrlo pero estaba demasiado quemado y la entrega se acerca a sí que debo de cumplir con los hitos obligatorios que he prepuesto. Finalmente, probé a ver como de cerca estaba y genere con IA la solución, y funcionaba, pero el código era extremadamente inconsistente y tenía pinta de que se rompería en cualquier momento además de que el proceso podría escaparse si estuviera bien hecho.
+
+Por todo estas razones, además de que no puedo generar código con IA, he decido dejar atrás este concepto tan interesante que casi logro. Si sigo con el proyecto en un futuro después de la entrega podría volver a intentar con esta idea ta interesante pero de momento mantendré sandbox más seguro, robusto y sobre todo, lo terminaré a tiempo sin hacer trampas.

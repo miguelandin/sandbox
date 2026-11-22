@@ -2,12 +2,14 @@
 #include "KernelAbi.hpp"
 #include "SandUtils.hpp"
 #include <cstdint>
+#include <format>
 #include <initializer_list>
 #include <linux/limits.h>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <sys/mount.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 // Functions to make your life easier by dealing with POSIX
@@ -40,30 +42,9 @@ bool mapUserNamespace(pid_t pid, uid_t uid, gid_t gid);
 // write instructions in the process map
 bool writeProcFile(const std::string &path, const std::string &content);
 
-// create a dir in /tmp
-std::optional<std::string> makeTempDir();
+// make current mount blind to other mounts
+bool isolateMnt();
 
-// create dirs with perm 0700 in base dir
-bool makeSubDirs(const std::string &base,
-                 std::initializer_list<std::string_view> dirs = {
-                     "root", "upper", "work"});
-
-std::optional<std::string> makeFakeEnviroment();
-
-// create an overlay file system
-bool mountOverlay(const std::string &base, const std::string &upper = "upper",
-                  const std::string &work = "work",
-                  const std::string &merged = "root",
-                  const std::string &lower = "/");
-
-// makes the mount of the process private, making it blind to the rest of mounts
-bool privateMount();
-
-// change the root dir of the process to path
-bool changeRoot(const std::string &path);
-
-// trick process into an isolated enviroment in /tmp/sandbox_
-bool setFakeEnviroment(const std::string &base,
-                       const ::std::string &root = "root");
-
+// make current mount unwritable
+bool readOnlyMnt();
 } // namespace psx

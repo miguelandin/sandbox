@@ -4,10 +4,8 @@
 #include <cstdlib>
 #include <fcntl.h>
 #include <format>
-#include <optional>
 #include <sched.h>
 #include <string>
-#include <string_view>
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -47,13 +45,6 @@ std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
 pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
                          const snd::Flags &flags) {
 
-  auto tmp = psx::makeFakeEnviroment();
-  if (!flags.write) {
-    if (!tmp) {
-      std::exit(1);
-    }
-  }
-
   pid_t pid = fork();
 
   if (pid == 0) {
@@ -65,7 +56,7 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
     raise(SIGSTOP);
 
     if (!flags.write) {
-      if (!psx::setFakeEnviroment(*tmp)) {
+      if (!isolateMnt() && !readOnlyMnt()) {
         _exit(1);
       }
     }
@@ -136,76 +127,19 @@ bool psx::writeProcFile(const std::string &path, const std::string &content) {
   return true;
 }
 
-std::optional<std::string> psx::makeTempDir() {
-  std::string dir = "/tmp/sandbox_XXXXXX";
-  if (mkdtemp(dir.data())) {
-    return dir;
-  }
-  std::perror("mktemp failed");
-  return std::nullopt;
-}
-
-bool psx::makeSubDirs(const std::string &base,
-                      std::initializer_list<std::string_view> dirs) {
-  for (const auto &dir : dirs) {
-    auto path = std::format("{}/{}", base, dir);
-    if (mkdir(path.c_str(), 0700) == -1) {
-      std::perror(std::format("mkdir failed: {}", path).c_str());
-      return false;
-    }
-  }
-  return true;
-}
-
-std::optional<std::string> psx::makeFakeEnviroment() {
-  std::optional<std::string> env;
-  if (env = psx::makeTempDir(); env) {
-    psx::makeSubDirs(*env);
-  }
-
-  return env;
-}
-
-bool psx::mountOverlay(const std::string &base, const std::string &upper,
-                       const std::string &work, const std::string &merge,
-                       const std::string &lower) {
-  auto upperdir = std::format("{}/{}", base, upper);
-  auto mergedir = std::format("{}/{}", base, merge);
-  auto workdir = std::format("{}/{}", base, work);
-  auto options = std::format("lowerdir={},upperdir={},workdir={},userxattr",
-                             lower, upperdir, workdir);
-
-  if (mount("overlay", mergedir.c_str(), "overlay", 0, options.c_str()) != 0) {
-    std::perror("failed to mount overlay");
-    return false;
-  }
-
-  return true;
-}
-
-bool psx::privateMount() {
-  if (mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) == -1) {
-    std::perror("privateMount failed");
+bool psx::isolateMnt() {
+  if (mount(nullptr, "/", nullptr, MS_REC | MS_PRIVATE, nullptr) != 0) {
+    std::perror("isolateMnt failed");
     return false;
   }
   return true;
 }
 
-bool psx::changeRoot(const std::string &jailPath) {
-  if (chroot(jailPath.c_str()) == -1) {
-    std::perror("chroot failed");
+bool psx::readOnlyMnt() {
+  if (mount("/", "/", nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr) !=
+      0) {
+    std::perror("readOnlyMnt failed");
     return false;
   }
-
-  if (chdir("/") == -1) {
-    std::perror("chdir failed");
-    return false;
-  }
-
   return true;
-}
-
-bool psx::setFakeEnviroment(const std::string &base, const std::string &root) {
-  return privateMount() && mountOverlay(base) &&
-         changeRoot(std::format("{}/{}", base, root));
 }

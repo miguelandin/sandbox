@@ -19,7 +19,7 @@ public:
   bool read = false;    // -r
   bool write = false;   // -w
   bool user = false;    // -u
-  bool exec = false;    // -e
+  bool exec = false;    // -x
   int nmflags = 0;
 
   Flags(std::uint8_t options = 0);
