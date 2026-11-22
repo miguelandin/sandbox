@@ -134,12 +134,3 @@ bool psx::isolateMnt() {
   }
   return true;
 }
-
-bool psx::readOnlyMnt() {
-  if (mount("/", "/", nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY, nullptr) !=
-      0) {
-    std::perror("readOnlyMnt failed");
-    return false;
-  }
-  return true;
-}

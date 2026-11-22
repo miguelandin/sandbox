@@ -45,6 +45,4 @@ bool writeProcFile(const std::string &path, const std::string &content);
 // make current mount blind to other mounts
 bool isolateMnt();
 
-// make current mount unwritable
-bool readOnlyMnt();
 } // namespace psx
