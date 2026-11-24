@@ -40,7 +40,7 @@ struct sandbox_ptrace_syscall_info {
       std::uint64_t args[6];
     } entry;
     struct {
-      std::uint64_t rval;
+      std::int64_t rval;
       std::uint8_t is_error;
     } exit;
     struct {

@@ -198,3 +198,41 @@ En cuanto las flags, he puesto una nueva `-A` la cual ejecuta el proceso sin res
 Hoy ha sido un día de desarrollo muy duro y una pérdida de tiempo. Intenté implementar un entorno de trabajo completamente falso para el proceso malicioso: Este estaría montado en `/tmp/sandbox_XXXXXX`, el proceso pensaría que esta viendo y editando archivos del árbol real (desde root), pero en realidad siempre que escriba un archivo, se guardaría en `/tmp/sandbox_XXXXXX`. Tras unas 16 horas de programación he tenido que tirar la toalla. Me quede bastante cerca de lograrlo pero estaba demasiado quemado y la entrega se acerca a sí que debo de cumplir con los hitos obligatorios que he prepuesto. Finalmente, probé a ver como de cerca estaba y genere con IA la solución, y funcionaba, pero el código era extremadamente inconsistente y tenía pinta de que se rompería en cualquier momento además de que el proceso podría escaparse si estuviera bien hecho.
 
 Por todo estas razones, además de que no puedo generar código con IA, he decido dejar atrás este concepto tan interesante que casi logro. Si sigo con el proyecto en un futuro después de la entrega podría volver a intentar con esta idea ta interesante pero de momento mantendré sandbox más seguro, robusto y sobre todo, lo terminaré a tiempo sin hacer trampas.
+
+---
+24/11/26
+Como ultimamente mi velocidad de desarrollo ha sido nefasta, he decido probar otro approach: Ahora que voy a implementar el `seccomp` y terminar de una vez con la fase 2, lo que haré primero, antes de escribir ni una sola línea de código, será investigar que es `seccomp`, luego, una vez tenga claro como funciona, escribiré unas check boxes con las tareas que tengo que hacer para lograr mi objeto, asegurándome de que son correctas las definiciones de las tareas. Finalmente me pondré a codear, completando tareas y debería de funcionar sin tantas complicaciones como las que he tenido desarrollando como he estado haciendo antes (como que nunca funciona, no se que estoy haciendo en el fondo, no sé como funciona la librería, el código siempre tengo que refactorizarlo luego...). Con esto claro, esto es lo que he sacado de la investigación:
+
+- [ ] Añadir a `StopKind` una variable nueva que sea `SeccompEvent`. En la función  `clasifiyStop` devolver `SeccompEvent` si `WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP && ((status >> 16) == PTRACE_EVENT_SECCOMP))`. Con estos cambios podremos saber que interrupciones son llamadas de `seccomp`.
+
+- [ ] Reemplazar por completo el `StopKind` de `SyscallStop` por el nuevo de `SeccompEvent` y el manejo antiguo, ya que con `PTRACE_GETEVENTMSG` se podrá filtrar de forma mucho más eficiente (ya que solo se para con las llamadas que bloqueamos), y con el resultado se podrá parsear que hacer con el dependiendo de que tipo de acción hizo y  así (si está permitido o no cuando pasamos las flags previamente) bloquearlo con `EPERM` (no tiene permisos para hacer) o con `EACCES` (tiene permiso de la acción, pero no de los recursos concretos).
+
+- [ ] Instanciar `seccomp` con `scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW)`. Con esto se permite todo en principio y luego iremos poniendo en la lista negra que cosas peligrosas no puede hacer. El contexto `SCMP_ACT_ALLOW` dice que intercepte las llamadas que se pongan en las reglas pero no mate el proceso directamente.
+
+- [ ] Definir las reglas de `seccomp`. Para ello se usa por ejemplo `seccomp_rule_add(ctx, SCMP_ACT_TRACE(TAG_READ), SCMP_SYS(openat), 0);`. Hay ciertas llamadas a sistema como `OPENAT` que se usan para dos tipos de regla, como en este caso es leer y escribir, por lo que a la hora de definir la regla, se usará una etiqueta solo para instrucciones de tipo `OPEN` y luego en el switch que mira ese grupo se mirarán los argumentos para saber si se trata de lectura o de escritura.
+
+- [ ] Hacer `seccomp_load()` **en el proceso hijo**. La instancia y definición de normas se harán en el padre.
+
+- [ ] Interceptar las instrucciones de `seccomp` usando `classifyStop`→`SeccompEvent`.
+
+- [ ] Coger la información de la instrucción en CPU con `ptrace(PTRACE_GET_SYSCALL_INFO, ...)`. De este información mirar en orden: `.op`  para estar seguro de que es una instrucción de tipo `PTRACE_SYSCALL_INFO_SECCOMP`, mirar `.ret_data` para saber a que grupo de flag (conexión, lectura, escritura, ejecución, ...) pertenece la instrucción que ha saltado cierta norma de `seccomp`, mirar `.nr` para saber que llamada de sistema hizo y con esto sacar su información y guardarlo en el log.
+
+- [ ] Si las flags de  a la hora de ejecutar `sandbox` no están presentes en el grupo de regla que se ha saltado, bloquear la instrucción con:
+```c++
+// Solo funciona en x86_64
+struct user_regs_struct regs{};
+ptrace(PTRACE_GETREGS, target_pid, nullptr, &regs)
+regs.orig_rax = static_cast<unsigned long long>(-1);
+regs.rax = static_cast<unsigned long long>(-EPERM);
+ptrace(PTRACE_SETREGS, pid, nullptr, &regs);
+```
+
+- [ ] En todas las interrupción por llamada de `seccomp`, se reanundará (con bloqueo o permitddo) con `ptrace(PTRACE_CONT, pid, nullptr, nullptr);`
+
+- [ ] Etiquetar primero por grupo con `.ret_data` y luego por instrucción en concreto con `.nr`.
+
+- [ ] Cambiar configuración de `ptrace` para que funcione con `seccomp`: Poner en sus opciones **`PTRACE_O_TRACESECCOMP`**.
+
+- [ ] Limpiar el objeto `seccomp` con `seccomp_release(ctx);`.
+
+- [ ] Arreglar el problema de incompatibilidad de `seccomp` bloqueando ejecutar binarios con `execve` justo al lado. Para ello, simplemente, antes de que se llame a run, en el constructor de Tacer, hacer algo para que reciba la primera instrucción detenedia (que debe de ser la de execve) y la pase por alto.

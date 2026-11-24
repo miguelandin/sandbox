@@ -45,4 +45,6 @@ bool writeProcFile(const std::string &path, const std::string &content);
 // make current mount blind to other mounts
 bool isolateMnt();
 
+// TODO mount() functions to complement seccomp limitations 
+
 } // namespace psx
