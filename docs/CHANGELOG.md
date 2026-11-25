@@ -203,15 +203,15 @@ Por todo estas razones, además de que no puedo generar código con IA, he decid
 24/11/26
 Como ultimamente mi velocidad de desarrollo ha sido nefasta, he decido probar otro approach: Ahora que voy a implementar el `seccomp` y terminar de una vez con la fase 2, lo que haré primero, antes de escribir ni una sola línea de código, será investigar que es `seccomp`, luego, una vez tenga claro como funciona, escribiré unas check boxes con las tareas que tengo que hacer para lograr mi objeto, asegurándome de que son correctas las definiciones de las tareas. Finalmente me pondré a codear, completando tareas y debería de funcionar sin tantas complicaciones como las que he tenido desarrollando como he estado haciendo antes (como que nunca funciona, no se que estoy haciendo en el fondo, no sé como funciona la librería, el código siempre tengo que refactorizarlo luego...). Con esto claro, esto es lo que he sacado de la investigación:
 
-- [ ] Añadir a `StopKind` una variable nueva que sea `SeccompEvent`. En la función  `clasifiyStop` devolver `SeccompEvent` si `WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP && ((status >> 16) == PTRACE_EVENT_SECCOMP))`. Con estos cambios podremos saber que interrupciones son llamadas de `seccomp`.
+- [x] Añadir a `StopKind` una variable nueva que sea `SeccompEvent`. En la función  `clasifiyStop` devolver `SeccompEvent` si `WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP && ((status >> 16) == PTRACE_EVENT_SECCOMP))`. Con estos cambios podremos saber que interrupciones son llamadas de `seccomp`.
 
 - [ ] Reemplazar por completo el `StopKind` de `SyscallStop` por el nuevo de `SeccompEvent` y el manejo antiguo, ya que con `PTRACE_GETEVENTMSG` se podrá filtrar de forma mucho más eficiente (ya que solo se para con las llamadas que bloqueamos), y con el resultado se podrá parsear que hacer con el dependiendo de que tipo de acción hizo y  así (si está permitido o no cuando pasamos las flags previamente) bloquearlo con `EPERM` (no tiene permisos para hacer) o con `EACCES` (tiene permiso de la acción, pero no de los recursos concretos).
 
-- [ ] Instanciar `seccomp` con `scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW)`. Con esto se permite todo en principio y luego iremos poniendo en la lista negra que cosas peligrosas no puede hacer. El contexto `SCMP_ACT_ALLOW` dice que intercepte las llamadas que se pongan en las reglas pero no mate el proceso directamente.
+- [x] Instanciar `seccomp` con `scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW)`. Con esto se permite todo en principio y luego iremos poniendo en la lista negra que cosas peligrosas no puede hacer. El contexto `SCMP_ACT_ALLOW` dice que intercepte las llamadas que se pongan en las reglas pero no mate el proceso directamente.
 
-- [ ] Definir las reglas de `seccomp`. Para ello se usa por ejemplo `seccomp_rule_add(ctx, SCMP_ACT_TRACE(TAG_READ), SCMP_SYS(openat), 0);`. Hay ciertas llamadas a sistema como `OPENAT` que se usan para dos tipos de regla, como en este caso es leer y escribir, por lo que a la hora de definir la regla, se usará una etiqueta solo para instrucciones de tipo `OPEN` y luego en el switch que mira ese grupo se mirarán los argumentos para saber si se trata de lectura o de escritura.
+- [x] Definir las reglas de `seccomp`. Para ello se usa por ejemplo `seccomp_rule_add(ctx, SCMP_ACT_TRACE(TAG_READ), SCMP_SYS(openat), 0);`. Hay ciertas llamadas a sistema como `OPENAT` que se usan para dos tipos de regla, como en este caso es leer y escribir, por lo que a la hora de definir la regla, se usará una etiqueta solo para instrucciones de tipo `OPEN` y luego en el switch que mira ese grupo se mirarán los argumentos para saber si se trata de lectura o de escritura.
 
-- [ ] Hacer `seccomp_load()` **en el proceso hijo**. La instancia y definición de normas se harán en el padre.
+- [x] Hacer `seccomp_load()` **en el proceso hijo**. La instancia y definición de normas se harán en el padre.
 
 - [ ] Interceptar las instrucciones de `seccomp` usando `classifyStop`→`SeccompEvent`.
 
@@ -227,12 +227,31 @@ regs.rax = static_cast<unsigned long long>(-EPERM);
 ptrace(PTRACE_SETREGS, pid, nullptr, &regs);
 ```
 
-- [ ] En todas las interrupción por llamada de `seccomp`, se reanundará (con bloqueo o permitddo) con `ptrace(PTRACE_CONT, pid, nullptr, nullptr);`
+- [ ] En todas las interrupción por llamada de `seccomp`, se reanudará (con bloqueo o permitido) con `ptrace(PTRACE_CONT, pid, nullptr, nullptr);`
 
 - [ ] Etiquetar primero por grupo con `.ret_data` y luego por instrucción en concreto con `.nr`.
 
-- [ ] Cambiar configuración de `ptrace` para que funcione con `seccomp`: Poner en sus opciones **`PTRACE_O_TRACESECCOMP`**.
+- [x] Cambiar configuración de `ptrace` para que funcione con `seccomp`: Poner en sus opciones **`PTRACE_O_TRACESECCOMP`**.
 
 - [ ] Limpiar el objeto `seccomp` con `seccomp_release(ctx);`.
 
-- [ ] Arreglar el problema de incompatibilidad de `seccomp` bloqueando ejecutar binarios con `execve` justo al lado. Para ello, simplemente, antes de que se llame a run, en el constructor de Tacer, hacer algo para que reciba la primera instrucción detenedia (que debe de ser la de execve) y la pase por alto.
+- [ ] Arreglar el problema de incompatibilidad de `seccomp` bloqueando ejecutar binarios con `execve` justo al lado. Para ello, simplemente, antes de que se llame a run, en el constructor de `Tracer`, hacer algo para que reciba la primera instrucción detenida (que debe de ser la de `execve`) y la pase por alto.
+
+
+---
+25/11/26
+
+A la hora de bloquear las operaciones de lecturas del proceso malicioso hay un problema: Si no puede leer nada → no puede ejecutar librerías y recursos que necesita para funcionar.
+
+La solución va a ser que en vez de bloquear con `seccomp` las instrucciones de lectura, usaré el `CLONE_NEWNS` para montar un overlay en directorios con información delicada, como `home/`. 
+
+Esto es lo que se hará:
+
+- **Para `/home`, un overlay en vez de un volumen vacío.** El mismo overlay que ya tienes, pero con `lowerdir` apuntando a un directorio vacío en lugar del `/home` real. Con un solo montaje consigues las dos cosas: el proceso no ve nada tuyo y todo lo que escriba queda en `capture/`.
+- **Volver a poner `CLONE_NEWPID` y montar un `/proc` nuevo**, sin eso, lo demás tiene un agujero enorme. Si lo quitaste por algún problema concreto, ese problema es el que hay que resolver.
+- **Tapar con un tmpfs vacío** `/run/user/<uid>`, `/dev/shm`, `/media` y `/mnt`. `/tmp` y `/var/tmp` también, si tu overlay no los cubre ya.
+- **`chdir` después de los montajes.**
+- **seccomp solo para lo que los namespaces no pueden hacer:** io_uring, `open_by_handle_at`, `ptrace` y la red como segunda capa.
+
+- **La flag `-r` cambia de significado.** Pasa de bloquear la lectura a ocultar los datos personales. Me parece mejor diseño, pero es un cambio respecto a `definition.md` y tiene que aparecer en la tabla de cambios de la memoria final.
+- **El calendario.**  El overlay con lower vacío, `NEWPID` con `/proc` nuevo y el `chdir` son cambios pequeños sobre código que ya tienes. El resto, si no llega, lo puedes documentar como limitación conocida.

@@ -1,4 +1,5 @@
 #include "PosixUtils.hpp"
+#include "Warden.hpp"
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -7,6 +8,7 @@
 #include <sched.h>
 #include <string>
 #include <sys/mount.h>
+#include <sys/ptrace.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -56,10 +58,12 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
     raise(SIGSTOP);
 
     if (!flags.write) {
-      if (!isolateMnt() && !readOnlyMnt()) {
+      if (!isolateMnt()) {
         _exit(1);
       }
     }
+
+    sec::loadSeccomp();
 
     execvp(binaryPath, arguments);
     std::perror("execve execution failed");
@@ -81,14 +85,16 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
 }
 
 psx::StopKind psx::classifyStop(int status) {
+
+  if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP &&
+      ((status >> 16) == PTRACE_EVENT_SECCOMP)) {
+    return psx::StopKind::SeccompEvent;
+  }
   if (WIFEXITED(status) || WIFSIGNALED(status)) {
     return psx::StopKind::Ended;
   }
   if (status >> 16) {
     return psx::StopKind::PtraceEvent;
-  }
-  if (WSTOPSIG(status) == (SIGTRAP | psx::TRACE_IS_GOOD_BIT)) {
-    return psx::StopKind::SyscallStop;
   }
   return psx::StopKind::SignalDelivery;
 }
