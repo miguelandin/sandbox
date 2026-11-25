@@ -31,7 +31,7 @@ inline void resumeProcess(pid_t pid, int signal = 0) {
 }
 
 // every possible meaning of a waitpid status for a traced process
-enum class StopKind { Ended, PtraceEvent, SyscallStop, SignalDelivery };
+enum class StopKind { Ended, PtraceEvent, SeccompEvent, SignalDelivery };
 
 // return a StopKind value depending of the status of the process event
 StopKind classifyStop(int status);

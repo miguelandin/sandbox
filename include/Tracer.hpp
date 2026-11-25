@@ -11,7 +11,7 @@ class Tracer {
 private:
   int m_options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEEXEC |
                   PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE |
-                  PTRACE_O_TRACEVFORK;
+                  PTRACE_O_TRACEVFORK | PTRACE_O_TRACESECCOMP;
   int m_status;
   pid_t m_pid;
   struct sandbox_ptrace_syscall_info m_sysInfo;
@@ -53,7 +53,7 @@ public:
         // created
         break;
       }
-      case psx::StopKind::SyscallStop: {
+      case psx::StopKind::SeccompEvent: {
         if (ptrace(PTRACE_GET_SYSCALL_INFO, pid, sizeof(m_sysInfo),
                    &m_sysInfo) == -1) {
           break;
