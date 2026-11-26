@@ -10,6 +10,7 @@
 #include <sys/mount.h>
 #include <sys/ptrace.h>
 #include <sys/stat.h>
+#include <sys/user.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -139,4 +140,21 @@ bool psx::isolateMnt() {
     return false;
   }
   return true;
+}
+
+bool psx::blockSeccompProcess(pid_t pid) {
+#if defined(__x86_64__)
+  user_regs_struct regs{};
+  if (ptrace(PTRACE_GETREGS, pid, nullptr, &regs) == -1) {
+    return false;
+  }
+
+  regs.orig_rax = static_cast<unsigned long long>(-1);
+  regs.rax = static_cast<unsigned long long>(-EPERM);
+
+  return ptrace(PTRACE_SETREGS, pid, nullptr, &regs) != -1;
+
+#else
+#error "blockSeccompProcess: unsupported architecture"
+#endif
 }

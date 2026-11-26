@@ -213,7 +213,7 @@ Como ultimamente mi velocidad de desarrollo ha sido nefasta, he decido probar ot
 
 - [x] Hacer `seccomp_load()` **en el proceso hijo**. La instancia y definición de normas se harán en el padre.
 
-- [ ] Interceptar las instrucciones de `seccomp` usando `classifyStop`→`SeccompEvent`.
+- [x] Interceptar las instrucciones de `seccomp` usando `classifyStop`→`SeccompEvent`.
 
 - [ ] Coger la información de la instrucción en CPU con `ptrace(PTRACE_GET_SYSCALL_INFO, ...)`. De este información mirar en orden: `.op`  para estar seguro de que es una instrucción de tipo `PTRACE_SYSCALL_INFO_SECCOMP`, mirar `.ret_data` para saber a que grupo de flag (conexión, lectura, escritura, ejecución, ...) pertenece la instrucción que ha saltado cierta norma de `seccomp`, mirar `.nr` para saber que llamada de sistema hizo y con esto sacar su información y guardarlo en el log.
 
@@ -240,13 +240,11 @@ ptrace(PTRACE_SETREGS, pid, nullptr, &regs);
 
 ---
 25/11/26
-
 A la hora de bloquear las operaciones de lecturas del proceso malicioso hay un problema: Si no puede leer nada → no puede ejecutar librerías y recursos que necesita para funcionar.
 
 La solución va a ser que en vez de bloquear con `seccomp` las instrucciones de lectura, usaré el `CLONE_NEWNS` para montar un overlay en directorios con información delicada, como `home/`. 
 
-Esto es lo que se hará:
-
+Esto es lo que se hará (hacerlo en próximas sesiones):
 - **Para `/home`, un overlay en vez de un volumen vacío.** El mismo overlay que ya tienes, pero con `lowerdir` apuntando a un directorio vacío en lugar del `/home` real. Con un solo montaje consigues las dos cosas: el proceso no ve nada tuyo y todo lo que escriba queda en `capture/`.
 - **Volver a poner `CLONE_NEWPID` y montar un `/proc` nuevo**, sin eso, lo demás tiene un agujero enorme. Si lo quitaste por algún problema concreto, ese problema es el que hay que resolver.
 - **Tapar con un tmpfs vacío** `/run/user/<uid>`, `/dev/shm`, `/media` y `/mnt`. `/tmp` y `/var/tmp` también, si tu overlay no los cubre ya.
@@ -255,3 +253,10 @@ Esto es lo que se hará:
 
 - **La flag `-r` cambia de significado.** Pasa de bloquear la lectura a ocultar los datos personales. Me parece mejor diseño, pero es un cambio respecto a `definition.md` y tiene que aparecer en la tabla de cambios de la memoria final.
 - **El calendario.**  El overlay con lower vacío, `NEWPID` con `/proc` nuevo y el `chdir` son cambios pequeños sobre código que ya tienes. El resto, si no llega, lo puedes documentar como limitación conocida.
+
+Hoy, a aparte de ese prompt de arriba que tengo guardado para saber como bloquear el acceso del proceso malicioso a directorios con información delicada, sin que pierda acceso a recursos necesarios para que funcione, he cumplido con todas las tareas que definí y la verdad es que el desarrollo ha ido bastante bien. Ha sido un acierto cambiar este método de desarrollo.
+
+Para ir previniendo la implementación de `journalctl`, he mirado un poco como funciona y va a ser muy útil que lo handlers de `Tracer.run` reciban, en vez de un simple `std::string`, un struct que contenga varios datos sobre la llamada a sistema, haciendo que sean fáciles de manejar por los handlers (en principio el que guardará los logs). Este `struct` está definido en el nuevo header file 
+
+Finalmente para rellenar el campo target de este nuevo tipo, hay una limitación según Claude que sería necesaria documentar:
+**Limitación de TOCTOU.** Lees la ruta o el `sockaddr` en la parada de seccomp, antes de que el kernel los copie. Un malware con varios hilos podría cambiar esa memoria justo después de tu lectura: tú registras `/tmp/inocente` y el kernel abre `/etc/shadow`. Es un problema conocido de todos los sandboxes basados en ptrace.

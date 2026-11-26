@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Warden.hpp"
 #include <cstdint>
 #include <sched.h>
 #include <string>
@@ -20,6 +21,7 @@ public:
   bool write = false;   // -w
   bool user = false;    // -u
   bool exec = false;    // -x
+  sec::Group allowedGroups; //TODO
   int nmflags = 0;
 
   Flags(std::uint8_t options = 0);

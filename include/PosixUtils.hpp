@@ -2,13 +2,10 @@
 #include "KernelAbi.hpp"
 #include "SandUtils.hpp"
 #include <cstdint>
-#include <format>
-#include <initializer_list>
 #include <linux/limits.h>
-#include <optional>
 #include <string>
-#include <string_view>
 #include <sys/mount.h>
+#include <sys/ptrace.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -26,9 +23,14 @@ std::string readStringFromProcess(pid_t pid, std::uint64_t address,
 pid_t launchProcess(const char *filename, char *const argv[],
                     const snd::Flags &flags);
 
-inline void resumeProcess(pid_t pid, int signal = 0) {
-  ptrace(PTRACE_SYSCALL, pid, nullptr, reinterpret_cast<void *>(signal));
+// resume process with his original instrucction
+inline bool resumeProcess(pid_t pid, int signal = 0) {
+  return ptrace(PTRACE_CONT, pid, nullptr, reinterpret_cast<void *>(signal)) !=
+         -1;
 }
+
+// block stopped process by seccomp
+bool blockSeccompProcess(pid_t pid);
 
 // every possible meaning of a waitpid status for a traced process
 enum class StopKind { Ended, PtraceEvent, SeccompEvent, SignalDelivery };
@@ -45,6 +47,6 @@ bool writeProcFile(const std::string &path, const std::string &content);
 // make current mount blind to other mounts
 bool isolateMnt();
 
-// TODO mount() functions to complement seccomp limitations 
+// TODO mount() functions to complement seccomp limitations
 
 } // namespace psx

@@ -1,6 +1,8 @@
+#include "Autopsy.hpp"
 #include "PosixUtils.hpp"
 #include "SandUtils.hpp"
 #include "Tracer.hpp"
+#include "Warden.hpp"
 #include <iostream>
 #include <sched.h>
 #include <unistd.h>
@@ -11,7 +13,9 @@ int main(int argc, char *argv[]) {
   std::cout << flags.toString() << std::endl;
 
   Tracer tracer(psx::launchProcess(argv[i], argv + i, flags));
-  auto print = [](std::string s) -> void { std::cout << s << std::endl; };
+  auto print = [](psy::Sample s) -> void {
+    std::cout << sec::group_toString(s.group) << std::endl;
+  };
   tracer.run(print);
   return 0;
 }

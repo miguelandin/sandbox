@@ -2,12 +2,18 @@
 #include <cerrno>
 #include <cstdint>
 #include <seccomp.h>
+#include <string_view>
+#include <format>
 
 namespace sec {
 enum class Group : std::uint16_t { NETWORK = 1, READ = 2, WRITE = 4, EXEC = 8 };
 
-constexpr inline std::uint16_t id(Group g) {
-  return static_cast<std::uint16_t>(g);
+std::string_view group_toString(Group group);
+
+constexpr std::uint16_t id(Group g) { return static_cast<std::uint16_t>(g); }
+
+constexpr bool hasGroup(std::uint32_t data, Group group) {
+  return (data & sec::id(group)) != 0;
 }
 
 // clang-format off
@@ -43,3 +49,18 @@ void setExecRule(scmp_filter_ctx ctx);
 void setReadWriteRule(scmp_filter_ctx ctx);
 
 } // namespace sec
+
+template <>
+struct std::formatter<sec::Group> : std::formatter<std::string_view> {
+  auto format(sec::Group group, std::format_context &ctx) const {
+    return std::formatter<std::string_view>::format(group_toString(group), ctx);
+  }
+};
+
+constexpr sec::Group operator|(sec::Group a, sec::Group b) noexcept {
+  return static_cast<sec::Group>(id(a) | id(b));
+}
+
+constexpr sec::Group operator&(sec::Group a, sec::Group b) noexcept {
+  return static_cast<sec::Group>(id(a) & id(b));
+}

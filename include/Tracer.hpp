@@ -1,4 +1,5 @@
 #pragma once
+#include "Autopsy.hpp"
 #include "KernelAbi.hpp"
 #include <PosixUtils.hpp>
 #include <cerrno>
@@ -13,10 +14,18 @@ private:
                   PTRACE_O_EXITKILL | PTRACE_O_TRACEFORK | PTRACE_O_TRACECLONE |
                   PTRACE_O_TRACEVFORK | PTRACE_O_TRACESECCOMP;
   int m_status;
+  int m_signal;
   pid_t m_pid;
   struct sandbox_ptrace_syscall_info m_sysInfo;
 
-  std::string manageSyscall(pid_t pid);
+  psy::Sample manageSyscall(pid_t pid);
+  bool networkCall(pid_t pid, psy::Sample &sample);
+  bool readCall(pid_t pid, psy::Sample &sample);
+  bool writeCall(pid_t pid, psy::Sample &sample);
+  bool readWriteCall(pid_t pid, psy::Sample &sample);
+  bool execCall(pid_t pid, psy::Sample &sample);
+  bool defaultCall(pid_t pid, psy::Sample &sample);
+
 
 public:
   Tracer(pid_t pid) : m_pid(pid) {
@@ -24,7 +33,7 @@ public:
   }
 
   template <typename... Handlers>
-    requires(std::invocable<Handlers, std::string> && ...)
+    requires(std::invocable<Handlers, psy::Sample> && ...)
   void run(Handlers... handlers) {
     psx::resumeProcess(m_pid);
 
@@ -41,7 +50,7 @@ public:
         break;
       }
 
-      int signal = 0;
+      m_signal = 0;
 
       switch (psx::classifyStop(m_status)) {
       case psx::StopKind::Ended: {
@@ -58,18 +67,18 @@ public:
                    &m_sysInfo) == -1) {
           break;
         }
-        if (m_sysInfo.op != PTRACE_SYSCALL_INFO_ENTRY) {
+        if (m_sysInfo.op != PTRACE_SYSCALL_INFO_SECCOMP) {
           break;
         }
         (handlers(manageSyscall(pid)), ...);
         break;
       }
       case psx::StopKind::SignalDelivery: {
-        signal = WSTOPSIG(m_status);
+        m_signal = WSTOPSIG(m_status);
         break;
       }
       }
-      psx::resumeProcess(pid, signal);
+      psx::resumeProcess(pid, m_signal);
     }
   }
 };
