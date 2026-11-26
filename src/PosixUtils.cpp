@@ -36,6 +36,12 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
 
     raise(SIGSTOP);
 
+    if (!flags.network && !flags.user) {
+      if (!allowSocketsICMP()) {
+        _exit(1);
+      }
+    }
+
     if (!flags.write) {
       if (!isolateMnt()) {
         _exit(1);
@@ -112,6 +118,12 @@ bool psx::writeProcFile(const std::string &path, const std::string &content) {
 
   close(proc);
   return true;
+}
+
+bool psx::allowSocketsICMP() {
+  auto gid = getgid();
+  return writeProcFile("/proc/sys/net/ipv4/ping_group_range",
+                       std::format("{} {}\n", gid, gid));
 }
 
 bool psx::isolateMnt() {

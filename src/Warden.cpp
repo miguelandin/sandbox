@@ -38,14 +38,14 @@ void sec::setDefaultRule(scmp_filter_ctx ctx) {
 }
 
 void sec::setNetworkRule(scmp_filter_ctx ctx) {
-  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(socket), 1, SCMP_A0(SCMP_CMP_EQ, AF_INET));
-  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(socket), 1, SCMP_A0(SCMP_CMP_EQ, AF_INET6));
-  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(socket), 1, SCMP_A0(SCMP_CMP_EQ, AF_PACKET));
   seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(connect), 0);
   seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(bind), 0);
   seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(listen), 0);
   seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(accept), 0);
   seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(accept4), 0);
+  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(sendto), 0);
+  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(sendmsg), 0);
+  seccomp_rule_add(ctx, t_NETWORK, SCMP_SYS(sendmmsg), 0);
 }
 
 void sec::setReadRule(scmp_filter_ctx ctx) {

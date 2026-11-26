@@ -57,6 +57,31 @@ std::string Tracer::networkCall() {
     return psx::formatSockaddr(
         storage, psx::readBytesFromProcess(m_cPid, args[1], &storage, len));
   }
+  case SYS_sendto: {
+    if (args[4] == 0) {
+      return psx::fdArg(m_cPid, args[0]);
+    }
+    sockaddr_storage storage{};
+    auto len =
+        std::min<std::size_t>(static_cast<socklen_t>(args[5]), sizeof(storage));
+    return psx::formatSockaddr(
+        storage, psx::readBytesFromProcess(m_cPid, args[4], &storage, len));
+  }
+  case SYS_sendmsg:
+  case SYS_sendmmsg: {
+    msghdr header{};
+    if (psx::readBytesFromProcess(m_cPid, args[1], &header, sizeof(header)) !=
+            sizeof(header) ||
+        header.msg_name == nullptr) {
+      return psx::fdArg(m_cPid, args[0]);
+    }
+    sockaddr_storage storage{};
+    auto len = std::min<std::size_t>(header.msg_namelen, sizeof(storage));
+    return psx::formatSockaddr(
+        storage, psx::readBytesFromProcess(
+                     m_cPid, reinterpret_cast<std::uint64_t>(header.msg_name),
+                     &storage, len));
+  }
   case SYS_listen:
   case SYS_accept:
   case SYS_accept4:
@@ -170,9 +195,7 @@ std::string Tracer::writeCall() {
   }
 }
 
-std::string Tracer::readWriteCall() {
-  return readCall();
-}
+std::string Tracer::readWriteCall() { return readCall(); }
 
 std::string Tracer::execCall() {
   const auto &args = m_sysInfo.seccomp.args;

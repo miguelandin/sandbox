@@ -272,4 +272,6 @@ Para que `execve` funcione sin bloquearse de inmediato por `Tracer` con el `secc
 
 Sobre las funciones `networkCall(), readCall(), writeCall() ...`  básicamente se está mirando las posibles `sys calls` (mirando `.nr`) y según el tipo, sacar la información para `.target` de la memoria, mirando en distintos argumentos, ya que dependiendo de la instrucción a sistema, la dirección que nos interesa puede estar en una `arg` o en otro.
 
-Tengo que mirar como quita el warning del case cuando invento valores de Group usando `Group | Group`. También voy 
+Tengo que mirar como quita el warning del case cuando invento valores de Group usando `Group | Group`. También voy a cambiar como se manejan las operaciones de lectura: Ahora mismo si no está permitido la lectura se bloquean directamente con la función `blockSeccompProcess`. Esto es un problema porque como mencioné en previos logs, los binarios necesitan leer de librerías y recursos para funcionar. Se me ocurren dos cosas: Compilarlo estáticamente para que los recursos los tengo en el propio código, o como mencioné el otro día montar overlays en `/home` y `/tmp`.
+
+Otro cambio nuevo, es que ahora para que se puedan leer las IPs que está intentado acceder el binario malicioso sin que tenga permisos de red u o usuario dándole acceso al puerto `ICMP` mediante la función `allowSocketICMP`.

@@ -41,6 +41,9 @@ bool mapUserNamespace(pid_t pid, uid_t uid, gid_t gid);
 // write instructions in the process map
 bool writeProcFile(const std::string &path, const std::string &content);
 
+// allow ICMP
+bool allowSocketsICMP();
+
 // make current mount blind to other mounts
 bool isolateMnt();
 
