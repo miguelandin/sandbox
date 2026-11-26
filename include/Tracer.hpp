@@ -1,7 +1,9 @@
 #pragma once
 #include "KernelAbi.hpp"
 #include "PosixUtils.hpp"
+#include "SandUtils.hpp"
 #include <cerrno>
+#include <string>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -14,21 +16,27 @@ private:
   int m_status;
   int m_signal;
   pid_t m_pid;
+  pid_t m_cPid;
+  snd::Group m_groups;
+  bool m_launched = false;
   struct sandbox_ptrace_syscall_info m_sysInfo;
 
-  snd::Sample manageSyscall(pid_t pid);
-  bool networkCall(pid_t pid, snd::Sample &sample);
-  bool readCall(pid_t pid, snd::Sample &sample);
-  bool writeCall(pid_t pid, snd::Sample &sample);
-  bool readWriteCall(pid_t pid, snd::Sample &sample);
-  bool execCall(pid_t pid, snd::Sample &sample);
-  bool defaultCall(pid_t pid, snd::Sample &sample);
-
+  snd::Sample manageSyscall();
+  std::string networkCall();
+  std::string readCall();
+  std::string writeCall();
+  std::string readWriteCall();
+  std::string execCall();
+  std::string defaultCall();
+  std::string getTarget(snd::Group group);
+  bool isLaunch(snd::Group sampleGroup);
 
 public:
-  Tracer(pid_t pid) : m_pid(pid) {
+  Tracer(pid_t pid, snd::Group g) : m_pid(pid), m_groups(g) {
     ptrace(PTRACE_SEIZE, pid, nullptr, m_options);
   }
+
+  Tracer(pid_t pid, snd::Flags f) : Tracer(pid, f.groups) {}
 
   template <typename... Handlers>
     requires(std::invocable<Handlers, snd::Sample> && ...)
@@ -36,9 +44,9 @@ public:
     psx::resumeProcess(m_pid);
 
     while (true) {
-      pid_t pid = waitpid(-1, &m_status, __WALL);
+      m_cPid = waitpid(-1, &m_status, __WALL);
 
-      if (pid == -1) {
+      if (m_cPid == -1) {
         if (errno == EINTR) {
           continue;
         }
@@ -56,19 +64,22 @@ public:
         continue;
       }
       case psx::StopKind::PtraceEvent: {
+        if ((m_status >> 16) == PTRACE_EVENT_EXEC && m_cPid == m_pid) {
+          m_launched = true;
+        }
         // TODO report PTRACE_GETEVENTMSG into u_long to log which pid was
         // created
         break;
       }
       case psx::StopKind::SeccompEvent: {
-        if (ptrace(PTRACE_GET_SYSCALL_INFO, pid, sizeof(m_sysInfo),
+        if (ptrace(PTRACE_GET_SYSCALL_INFO, m_cPid, sizeof(m_sysInfo),
                    &m_sysInfo) == -1) {
           break;
         }
         if (m_sysInfo.op != PTRACE_SYSCALL_INFO_SECCOMP) {
           break;
         }
-        (handlers(manageSyscall(pid)), ...);
+        (handlers(manageSyscall()), ...);
         break;
       }
       case psx::StopKind::SignalDelivery: {
@@ -76,7 +87,7 @@ public:
         break;
       }
       }
-      psx::resumeProcess(pid, m_signal);
+      psx::resumeProcess(m_cPid, m_signal);
     }
   }
 };

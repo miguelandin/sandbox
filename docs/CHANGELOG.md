@@ -265,3 +265,11 @@ Finalmente para rellenar el campo target de este nuevo tipo, hay una limitación
 26/11/26
 
 He cambiado la estructura general del código un poco: Antes tenía una mascara de bits `std::uint8_t` que solo servía como parámetro para el constructor de `snd::Flags`. También tenía un `struct` `enum` llamado Groups que hacía practicamente lo mismo que la másacara  de bits pero más seguro ya que es un `enum`. Lo que he hecho ha sido mover `psy::Sample` a `SandUtils.hpp`, el header file `Autopsy.hpp` lo he borrado porque se quedó vacío. Ahora siempre que se usa variable de Grupo, tanto como el constructor de `Flags` como para leer `.ret_data`, son siempre del tipo `Group` definido en `SandUtils.hpp`. Además de todo esto, para que funcione correctametne el `enum` como una máscara de bits, he hecho las funciones de operadores `|, &, |=`, además de que se pueden pasar a string con su función `group_toString` que se usa en la redefinición de `std::format`.
+
+He implementado todas las funciones de lectura de memoria RAM en `PosixUtils` las cuales se usan en `Tracer` para rellenar el parámetro `target` de `sample`.
+
+Para que `execve` funcione sin bloquearse de inmediato por `Tracer` con el `seccomp`, he puesto un bool `m_launched` el cual está inicializado en false. Cuando se llega a un `Stopkind::PtraceEvent` y su bit 16 es igual `PTRACE_EVENT_EXEC` (evento de que se ejecutó `execve`) a la vez que el `m_pid` (`pid` del proceso malicioso) es igual al  `m_cPid` `pid` del proceso detenido (con esto comprobamos que no es un proceso hijo del binario malicioso), pasamos `m_launched` a true. Con el método privado `isLaunch` se comprueba si el grupo `EXEC` ejecutado es del proceso original `execve`.
+
+Sobre las funciones `networkCall(), readCall(), writeCall() ...`  básicamente se está mirando las posibles `sys calls` (mirando `.nr`) y según el tipo, sacar la información para `.target` de la memoria, mirando en distintos argumentos, ya que dependiendo de la instrucción a sistema, la dirección que nos interesa puede estar en una `arg` o en otro.
+
+Tengo que mirar como quita el warning del case cuando invento valores de Group usando `Group | Group`. También voy 

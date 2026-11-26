@@ -4,8 +4,6 @@
 #include <seccomp.h>
 #include <sys/socket.h>
 
-
-
 bool sec::loadSeccomp() {
   auto ctx = createNewFilter();
   if (!ctx) {
@@ -13,7 +11,10 @@ bool sec::loadSeccomp() {
     return false;
   }
   setRules(ctx);
-  return true;
+
+  bool ok = (seccomp_load(ctx) == 0);
+  seccomp_release(ctx);
+  return ok;
 }
 
 scmp_filter_ctx sec::createNewFilter() { return seccomp_init(SCMP_ACT_ALLOW); }

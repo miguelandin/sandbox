@@ -10,9 +10,10 @@ int main(int argc, char *argv[]) {
   snd::Flags flags(snd::argsToGroups(i, argc, argv));
   std::cout << flags.toString() << std::endl;
 
-  Tracer tracer(psx::launchProcess(argv[i], argv + i, flags));
+  Tracer tracer(psx::launchProcess(argv[i], argv + i, flags), flags);
   auto print = [](snd::Sample s) -> void {
     std::cout << snd::group_toString(s.group) << std::endl;
+    std::cout << s.target << std::endl;
   };
   tracer.run(print);
   return 0;

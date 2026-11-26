@@ -1,49 +1,27 @@
 #include "PosixUtils.hpp"
 #include "Warden.hpp"
+#include <arpa/inet.h>
+#include <array>
 #include <csignal>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
+#include <filesystem>
 #include <format>
+#include <netinet/in.h>
 #include <sched.h>
 #include <string>
 #include <sys/mount.h>
 #include <sys/ptrace.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/un.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <unistd.h>
-
-std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
-                                       std::size_t max_len) {
-  constexpr std::size_t word_size = sizeof(long);
-
-  std::size_t offset = address % word_size;
-  auto addr = address - offset;
-
-  std::string result;
-  while (true) {
-    errno = 0;
-    long word =
-        ptrace(PTRACE_PEEKDATA, pid, reinterpret_cast<void *>(addr), nullptr);
-    if (errno) {
-      return "";
-    }
-
-    const char *bytes = reinterpret_cast<const char *>(&word);
-    for (std::size_t i = offset; i < word_size; ++i) {
-      if (bytes[i] == '\0') {
-        return result;
-      }
-      if (result.size() == max_len) {
-        return "";
-      }
-      result += bytes[i];
-    }
-    offset = 0;
-    addr += word_size;
-  }
-}
 
 pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
                          const snd::Flags &flags) {
@@ -64,7 +42,9 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
       }
     }
 
-    sec::loadSeccomp();
+    if (!sec::loadSeccomp()) {
+      _exit(1);
+    }
 
     execvp(binaryPath, arguments);
     std::perror("execve execution failed");
@@ -157,4 +137,157 @@ bool psx::blockSeccompProcess(pid_t pid) {
 #else
 #error "blockSeccompProcess: unsupported architecture"
 #endif
+}
+
+// Family and type of a socket() call
+std::string psx::describeSocket(std::uint64_t domain, std::uint64_t type) {
+  std::string_view family = "unknown family";
+  switch (asFd(domain)) {
+  case AF_INET:
+    family = "IPv4";
+    break;
+  case AF_INET6:
+    family = "IPv6";
+    break;
+  case AF_PACKET:
+    family = "raw packet";
+    break;
+  }
+
+  std::string_view kind = "socket";
+  switch (asFd(type) & ~(SOCK_NONBLOCK | SOCK_CLOEXEC)) {
+  case SOCK_STREAM:
+    kind = "stream socket";
+    break;
+  case SOCK_DGRAM:
+    kind = "datagram socket";
+    break;
+  case SOCK_RAW:
+    kind = "raw socket";
+    break;
+  }
+  return std::format("new {} {}", family, kind);
+}
+
+std::string psx::readStringFromProcess(pid_t pid, std::uint64_t address,
+                                       std::size_t max_len) {
+  constexpr std::size_t word_size = sizeof(long);
+
+  std::size_t offset = address % word_size;
+  auto addr = address - offset;
+
+  std::string result;
+  while (true) {
+    errno = 0;
+    long word =
+        ptrace(PTRACE_PEEKDATA, pid, reinterpret_cast<void *>(addr), nullptr);
+    if (errno) {
+      return "";
+    }
+
+    const char *bytes = reinterpret_cast<const char *>(&word);
+    for (std::size_t i = offset; i < word_size; ++i) {
+      if (bytes[i] == '\0') {
+        return result;
+      }
+      if (result.size() == max_len) {
+        return "";
+      }
+      result += bytes[i];
+    }
+    offset = 0;
+    addr += word_size;
+  }
+}
+
+std::string psx::readProcLink(pid_t pid, const std::string &entry) {
+  std::array<char, PATH_MAX> buffer{};
+  auto link = std::format("/proc/{}/{}", pid, entry);
+  auto len = readlink(link.c_str(), buffer.data(), buffer.size());
+  if (len <= 0) {
+    return "";
+  }
+  return std::string(buffer.data(), static_cast<std::size_t>(len));
+}
+
+std::string psx::fdTarget(pid_t pid, int fd) {
+  auto target = readProcLink(pid, std::format("fd/{}", fd));
+  return target.empty() ? std::format("fd {}", fd) : target;
+}
+
+std::string psx::resolveAt(pid_t pid, int dirfd, const std::string &path) {
+  if (path.empty()) {
+    return dirfd == AT_FDCWD ? "unreadable path" : fdTarget(pid, dirfd);
+  }
+  if (path.front() == '/') {
+    return std::filesystem::path(path).lexically_normal().string();
+  }
+
+  auto base = dirfd == AT_FDCWD
+                  ? readProcLink(pid, "cwd")
+                  : readProcLink(pid, std::format("fd/{}", dirfd));
+  if (base.empty()) {
+    return path;
+  }
+  return (std::filesystem::path(base) / path).lexically_normal().string();
+}
+
+std::size_t psx::readBytesFromProcess(pid_t pid, std::uint64_t address,
+                                      void *out, std::size_t size) {
+  iovec local{out, size};
+  iovec remote{reinterpret_cast<void *>(address), size};
+  auto read = process_vm_readv(pid, &local, 1, &remote, 1, 0);
+  return read > 0 ? static_cast<std::size_t>(read) : 0;
+}
+
+std::string psx::execArgs(pid_t pid, std::uint64_t argvAddress) {
+  std::string result;
+  for (std::size_t i = 0; i < MAX_EXEC_ARGS; ++i) {
+    std::uint64_t pointer = 0;
+    auto address = argvAddress + i * sizeof(pointer);
+    if (readBytesFromProcess(pid, address, &pointer, sizeof(pointer)) !=
+            sizeof(pointer) ||
+        pointer == 0) {
+      return result;
+    }
+    result += ' ' + psx::readStringFromProcess(pid, pointer);
+  }
+  return result + " ...";
+}
+
+std::string psx::formatSockaddr(const sockaddr_storage &storage,
+                                std::size_t len) {
+  if (len < sizeof(sa_family_t)) {
+    return "unreadable address";
+  }
+
+  switch (storage.ss_family) {
+  case AF_INET: {
+    const auto &in = reinterpret_cast<const sockaddr_in &>(storage);
+    std::array<char, INET_ADDRSTRLEN> ip{};
+    inet_ntop(AF_INET, &in.sin_addr, ip.data(), ip.size());
+    return std::format("{}:{}", ip.data(), ntohs(in.sin_port));
+  }
+  case AF_INET6: {
+    const auto &in6 = reinterpret_cast<const sockaddr_in6 &>(storage);
+    std::array<char, INET6_ADDRSTRLEN> ip{};
+    inet_ntop(AF_INET6, &in6.sin6_addr, ip.data(), ip.size());
+    return std::format("[{}]:{}", ip.data(), ntohs(in6.sin6_port));
+  }
+  case AF_UNIX: {
+    const auto &un = reinterpret_cast<const sockaddr_un &>(storage);
+    constexpr auto pathOffset = offsetof(sockaddr_un, sun_path);
+    if (len <= pathOffset) {
+      return "unix socket (unnamed)";
+    }
+    auto pathLen = len - pathOffset;
+    if (un.sun_path[0] == '\0') {
+      return "unix socket @" + std::string(un.sun_path + 1, pathLen - 1);
+    }
+    return "unix socket " +
+           std::string(un.sun_path, strnlen(un.sun_path, pathLen));
+  }
+  default:
+    return std::format("address family {}", storage.ss_family);
+  }
 }
