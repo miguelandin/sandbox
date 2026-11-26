@@ -14,7 +14,8 @@ enum class Group : std::uint16_t {
   READ = 2,
   WRITE = 4,
   EXEC = 8,
-  USER = 16
+  USER = 16,
+  READW_RITE = READ | WRITE
 };
 
 std::string_view group_toString(Group group) noexcept;
