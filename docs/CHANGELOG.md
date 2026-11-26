@@ -205,7 +205,7 @@ Como ultimamente mi velocidad de desarrollo ha sido nefasta, he decido probar ot
 
 - [x] Añadir a `StopKind` una variable nueva que sea `SeccompEvent`. En la función  `clasifiyStop` devolver `SeccompEvent` si `WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP && ((status >> 16) == PTRACE_EVENT_SECCOMP))`. Con estos cambios podremos saber que interrupciones son llamadas de `seccomp`.
 
-- [ ] Reemplazar por completo el `StopKind` de `SyscallStop` por el nuevo de `SeccompEvent` y el manejo antiguo, ya que con `PTRACE_GETEVENTMSG` se podrá filtrar de forma mucho más eficiente (ya que solo se para con las llamadas que bloqueamos), y con el resultado se podrá parsear que hacer con el dependiendo de que tipo de acción hizo y  así (si está permitido o no cuando pasamos las flags previamente) bloquearlo con `EPERM` (no tiene permisos para hacer) o con `EACCES` (tiene permiso de la acción, pero no de los recursos concretos).
+- [x] Reemplazar por completo el `StopKind` de `SyscallStop` por el nuevo de `SeccompEvent` y el manejo antiguo, ya que con `PTRACE_GETEVENTMSG` se podrá filtrar de forma mucho más eficiente (ya que solo se para con las llamadas que bloqueamos), y con el resultado se podrá parsear que hacer con el dependiendo de que tipo de acción hizo y  así (si está permitido o no cuando pasamos las flags previamente) bloquearlo con `EPERM` (no tiene permisos para hacer) o con `EACCES` (tiene permiso de la acción, pero no de los recursos concretos).
 
 - [x] Instanciar `seccomp` con `scmp_filter_ctx ctx = seccomp_init(SCMP_ACT_ALLOW)`. Con esto se permite todo en principio y luego iremos poniendo en la lista negra que cosas peligrosas no puede hacer. El contexto `SCMP_ACT_ALLOW` dice que intercepte las llamadas que se pongan en las reglas pero no mate el proceso directamente.
 
@@ -215,9 +215,9 @@ Como ultimamente mi velocidad de desarrollo ha sido nefasta, he decido probar ot
 
 - [x] Interceptar las instrucciones de `seccomp` usando `classifyStop`→`SeccompEvent`.
 
-- [ ] Coger la información de la instrucción en CPU con `ptrace(PTRACE_GET_SYSCALL_INFO, ...)`. De este información mirar en orden: `.op`  para estar seguro de que es una instrucción de tipo `PTRACE_SYSCALL_INFO_SECCOMP`, mirar `.ret_data` para saber a que grupo de flag (conexión, lectura, escritura, ejecución, ...) pertenece la instrucción que ha saltado cierta norma de `seccomp`, mirar `.nr` para saber que llamada de sistema hizo y con esto sacar su información y guardarlo en el log.
+- [x] Coger la información de la instrucción en CPU con `ptrace(PTRACE_GET_SYSCALL_INFO, ...)`. De este información mirar en orden: `.op`  para estar seguro de que es una instrucción de tipo `PTRACE_SYSCALL_INFO_SECCOMP`, mirar `.ret_data` para saber a que grupo de flag (conexión, lectura, escritura, ejecución, ...) pertenece la instrucción que ha saltado cierta norma de `seccomp`, mirar `.nr` para saber que llamada de sistema hizo y con esto sacar su información y guardarlo en el log.
 
-- [ ] Si las flags de  a la hora de ejecutar `sandbox` no están presentes en el grupo de regla que se ha saltado, bloquear la instrucción con:
+- [x] Si las flags de  a la hora de ejecutar `sandbox` no están presentes en el grupo de regla que se ha saltado, bloquear la instrucción con:
 ```c++
 // Solo funciona en x86_64
 struct user_regs_struct regs{};
@@ -227,15 +227,15 @@ regs.rax = static_cast<unsigned long long>(-EPERM);
 ptrace(PTRACE_SETREGS, pid, nullptr, &regs);
 ```
 
-- [ ] En todas las interrupción por llamada de `seccomp`, se reanudará (con bloqueo o permitido) con `ptrace(PTRACE_CONT, pid, nullptr, nullptr);`
+- [x] En todas las interrupción por llamada de `seccomp`, se reanudará (con bloqueo o permitido) con `ptrace(PTRACE_CONT, pid, nullptr, nullptr);`
 
-- [ ] Etiquetar primero por grupo con `.ret_data` y luego por instrucción en concreto con `.nr`.
+- [x] Etiquetar primero por grupo con `.ret_data` y luego por instrucción en concreto con `.nr`.
 
 - [x] Cambiar configuración de `ptrace` para que funcione con `seccomp`: Poner en sus opciones **`PTRACE_O_TRACESECCOMP`**.
 
-- [ ] Limpiar el objeto `seccomp` con `seccomp_release(ctx);`.
+- [x] Limpiar el objeto `seccomp` con `seccomp_release(ctx);`.
 
-- [ ] Arreglar el problema de incompatibilidad de `seccomp` bloqueando ejecutar binarios con `execve` justo al lado. Para ello, simplemente, antes de que se llame a run, en el constructor de `Tracer`, hacer algo para que reciba la primera instrucción detenida (que debe de ser la de `execve`) y la pase por alto.
+- [x] Arreglar el problema de incompatibilidad de `seccomp` bloqueando ejecutar binarios con `execve` justo al lado. Para ello, simplemente, antes de que se llame a run, en el constructor de `Tracer`, hacer algo para que reciba la primera instrucción detenida (que debe de ser la de `execve`) y la pase por alto.
 
 
 ---
@@ -259,12 +259,12 @@ Hoy, a aparte de ese prompt de arriba que tengo guardado para saber como bloquea
 Para ir previniendo la implementación de `journalctl`, he mirado un poco como funciona y va a ser muy útil que lo handlers de `Tracer.run` reciban, en vez de un simple `std::string`, un struct que contenga varios datos sobre la llamada a sistema, haciendo que sean fáciles de manejar por los handlers (en principio el que guardará los logs). Este `struct` está definido en el nuevo header file 
 
 Finalmente para rellenar el campo target de este nuevo tipo, hay una limitación según Claude que sería necesaria documentar:
-**Limitación de TOCTOU.** Lees la ruta o el `sockaddr` en la parada de seccomp, antes de que el kernel los copie. Un malware con varios hilos podría cambiar esa memoria justo después de tu lectura: tú registras `/tmp/inocente` y el kernel abre `/etc/shadow`. Es un problema conocido de todos los sandboxes basados en ptrace.
+**Limitación de TOCTOU.** Lees la ruta o el `sockaddr` en la parada de `seccomp`, antes de que el kernel los copie. Un malware con varios hilos podría cambiar esa memoria justo después de tu lectura: tú registras `/tmp/inocente` y el kernel abre `/etc/shadow`. Es un problema conocido de todos los sandboxes basados en `ptrace`.
 
 ---
 26/11/26
 
-He cambiado la estructura general del código un poco: Antes tenía una mascara de bits `std::uint8_t` que solo servía como parámetro para el constructor de `snd::Flags`. También tenía un `struct` `enum` llamado Groups que hacía practicamente lo mismo que la másacara  de bits pero más seguro ya que es un `enum`. Lo que he hecho ha sido mover `psy::Sample` a `SandUtils.hpp`, el header file `Autopsy.hpp` lo he borrado porque se quedó vacío. Ahora siempre que se usa variable de Grupo, tanto como el constructor de `Flags` como para leer `.ret_data`, son siempre del tipo `Group` definido en `SandUtils.hpp`. Además de todo esto, para que funcione correctametne el `enum` como una máscara de bits, he hecho las funciones de operadores `|, &, |=`, además de que se pueden pasar a string con su función `group_toString` que se usa en la redefinición de `std::format`.
+He cambiado la estructura general del código un poco: Antes tenía una mascara de bits `std::uint8_t` que solo servía como parámetro para el constructor de `snd::Flags`. También tenía un `struct` `enum` llamado Groups que hacía practicamente lo mismo que la máscara  de bits pero más seguro ya que es un `enum`. Lo que he hecho ha sido mover `psy::Sample` a `SandUtils.hpp`, el header file `Autopsy.hpp` lo he borrado porque se quedó vacío. Ahora siempre que se usa variable de Grupo, tanto como el constructor de `Flags` como para leer `.ret_data`, son siempre del tipo `Group` definido en `SandUtils.hpp`. Además de todo esto, para que funcione correctamente el `enum` como una máscara de bits, he hecho las funciones de operadores `|, &, |=`, además de que se pueden pasar a string con su función `group_toString` que se usa en la re-definición de `std::format`.
 
 He implementado todas las funciones de lectura de memoria RAM en `PosixUtils` las cuales se usan en `Tracer` para rellenar el parámetro `target` de `sample`.
 
@@ -275,3 +275,90 @@ Sobre las funciones `networkCall(), readCall(), writeCall() ...`  básicamente s
 Tengo que mirar como quita el warning del case cuando invento valores de Group usando `Group | Group`. También voy a cambiar como se manejan las operaciones de lectura: Ahora mismo si no está permitido la lectura se bloquean directamente con la función `blockSeccompProcess`. Esto es un problema porque como mencioné en previos logs, los binarios necesitan leer de librerías y recursos para funcionar. Se me ocurren dos cosas: Compilarlo estáticamente para que los recursos los tengo en el propio código, o como mencioné el otro día montar overlays en `/home` y `/tmp`.
 
 Otro cambio nuevo, es que ahora para que se puedan leer las IPs que está intentado acceder el binario malicioso sin que tenga permisos de red u o usuario dándole acceso al puerto `ICMP` mediante la función `allowSocketICMP`.
+
+Tras investigar sobre el tema de lectura, he llegado al siguiente plan de trabajo. En vez de usar `overlays`, usaré `mounts` como `tmpfs`. Debería ser fácil de implementar:
+
+#### Fase 0. Preparación
+- [x] Hacer commit de lo que tienes ahora, para poder volver atrás.
+- [x] Crear en `/home/<tu usuario>/prueba/` un binario de prueba dinámico (un "hola mundo" vale).
+- [x] Crear en ese mismo directorio un fichero `secreto.txt` con cualquier contenido.
+- [x] Crear en ese mismo directorio un script `prueba.sh` con `#!/bin/sh` y un `ls`, y darle permiso de ejecución.
+- [x] Crear un segundo binario de prueba que intente abrir `secreto.txt` por ruta relativa y por ruta absoluta, e imprima si lo consigue.
+#### Fase 1. Namespace de montaje también cuando falta `-r`
+Archivo: `src/SandUtils.cpp`, constructor de `Flags`.
+- [x] Localizar el `if (!write)` que añade `CLONE_NEWNS` a `nmflags`.
+- [x] Cambiar la condición para que se cumpla cuando falte `-w` **o** falte `-r`.
+Archivo: `src/PosixUtils.cpp`, función `launchProcess`.
+- [x] Localizar el `if (!flags.write)` que llama a `isolateMnt()`.
+- [x] Cambiar la condición a la misma de arriba: falta `-w` o falta `-r`.
+- [x] Compilar y comprobar que `./bin/sandbox -w <binario>` sigue arrancando igual que antes.
+#### Fase 2. Función que oculta los directorios
+Archivo: `include/PosixUtils.hpp`.
+- [x] Añadir `#include <filesystem>`.
+- [x] Declarar una función nueva en `psx` que reciba la ruta del binario (`const char *`) y devuelva `bool` (por ejemplo, `hideUserDirs`).
+Archivo: `src/PosixUtils.cpp`. Dentro de la función nueva, en este orden:
+
+**2.1. Guardar lo que hace falta antes de tapar nada**
+- [x] Añadir `#include <system_error>`.
+- [x] Declarar un `std::error_code` para todas las llamadas de `std::filesystem` (así no lanzan excepciones).
+- [x] Guardar el directorio de trabajo actual con `std::filesystem::current_path(ec)`.
+- [x] Calcular la ruta absoluta del binario con `std::filesystem::canonical(binaryPath, ec)`.
+- [x] Guardar en un `bool` si `canonical` ha funcionado. Si falla, el argumento es un nombre suelto (`ping`) y se buscará en el `PATH`.
+- [ ] Comprobar si esa ruta absoluta empieza por `/home/`, `/root/` o `/run/user/`. Guardarlo en otro `bool`.
+- [ ] Solo si ambos `bool` son verdaderos: abrir el binario con `open(ruta, O_PATH | O_CLOEXEC)` y guardar el descriptor.
+- [ ] Si ese `open` devuelve -1: `perror` y devolver `false`.
+
+**2.2. Tapar los directorios**
+- [ ] Montar el tmpfs sobre `/home`: `mount("tmpfs", "/home", "tmpfs", MS_NOSUID | MS_NODEV, "size=1m,mode=755")`.
+- [ ] Si falla con un error distinto de `ENOENT`: `perror` y devolver `false`.
+- [ ] Repetir el montaje y la comprobación para `/root`.
+- [ ] Repetir el montaje y la comprobación para `/run/user`.
+
+**2.3. Volver a hacer visible el binario**
+
+Solo si se abrió el descriptor en 2.1:
+
+- [ ] Recrear los directorios padre del binario dentro del tmpfs: `std::filesystem::create_directories(ruta.parent_path(), ec)`.
+- [ ] Crear un fichero vacío con el nombre del binario: `open(ruta, O_WRONLY | O_CREAT, 0755)` y cerrarlo enseguida.
+- [ ] Construir el origen del bind mount: `std::format("/proc/self/fd/{}", descriptor)`.
+- [ ] Hacer el bind mount: `mount(origen, ruta, nullptr, MS_BIND, nullptr)`.
+- [ ] Si falla: `perror` y devolver `false`.
+- [ ] Remontarlo en solo lectura: `mount(nullptr, ruta, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr)`.
+- [ ] Si falla: `perror` y devolver `false`.
+- [ ] Cerrar el descriptor con `close`.
+
+**2.4. Cerrar la fuga del directorio de trabajo**
+
+- [ ] Recrear el directorio de trabajo guardado: `std::filesystem::create_directories(cwd, ec)`.
+- [ ] Hacer `chdir(cwd.c_str())`.
+- [ ] Si el `chdir` falla: hacer `chdir("/")` como último recurso. Nunca continuar sin haber hecho un `chdir` con éxito.
+- [ ] Devolver `true`.
+
+#### Fase 3. Llamar a la función desde el hijo
+Archivo: `src/PosixUtils.cpp`, función `launchProcess`, dentro del `if (pid == 0)`.
+- [ ] Colocar la llamada después de `isolateMnt()` y antes de `sec::loadSeccomp()`.
+- [ ] Llamarla solo cuando falte `-r` (`!flags.read`).
+- [ ] Si devuelve `false`: `_exit(1)`. Si no se puede ocultar, el binario no se ejecuta.
+- [ ] Comprobar que el orden final del hijo es: `unshare`, `raise(SIGSTOP)`, `isolateMnt`, ocultar directorios, `loadSeccomp`, `execvp`.
+- [ ] Dejar el `execvp` tal como está, con el argumento original.
+
+#### Fase 4. Dejar de bloquear las lecturas
+Archivo: `src/Tracer.cpp`, función `manageSyscall`.
+- [ ] Localizar la línea que calcula `sample.is_allowed`.
+- [ ] Añadir un caso: si el grupo es exactamente `READ`, la llamada se permite siempre.
+- [ ] Añadir otro caso: si el grupo es `READ | WRITE` (abrir con `O_RDWR`), se permite solo si el usuario dio `-w`. Si no lo tratas aparte, seguirá exigiendo también `-r`.
+- [ ] Dejar el resto de grupos como están.
+- [ ] Comprobar que las lecturas siguen llegando al handler: deben seguir apareciendo en el log.
+
+Archivo: `src/Warden.cpp`. No hay que tocar nada: las reglas de lectura se quedan para que el log siga funcionando.
+#### Fase 5. Pruebas
+Lanzando siempre desde `/home/<tu usuario>/prueba/` y sin `sudo`:
+- [ ] `sandbox ./binario` (sin flags): el binario dinámico arranca.
+- [ ] `sandbox ./prueba.sh`: el script se ejecuta y su `ls` solo muestra `prueba.sh`.
+- [ ] `sandbox ./lector`: `secreto.txt` no se puede abrir ni por ruta relativa ni por absoluta.
+- [ ] `sandbox -r ./lector`: `secreto.txt` sí se puede abrir.
+- [ ] `sandbox true`: un nombre suelto se sigue encontrando en `/usr/bin`.
+- [ ] `sandbox -w ./binario`: arranca, y lo que escriba en `/home` no aparece en tu `/home` real al terminar.
+- [ ] `ls /home/<tu usuario>` en otra terminal mientras el sandbox corre: tus ficheros siguen ahí. El montaje no ha salido del namespace.
+- [ ] Lanzar desde `/tmp` un binario que esté en `/tmp`: arranca y no da error en el `chdir`.
+- [ ] `make` sin avisos nuevos.

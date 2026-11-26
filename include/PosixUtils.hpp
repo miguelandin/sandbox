@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <filesystem>
 
 // Functions to make your life easier by dealing with POSIX
 namespace psx {
@@ -47,7 +48,8 @@ bool allowSocketsICMP();
 // make current mount blind to other mounts
 bool isolateMnt();
 
-// TODO mount() functions to complement seccomp limitations
+// hides dirs with important data by creating tmpfs mounts on top of them
+bool coverUserDirs(const char *);
 
 // convert arg sysInfo arg to int
 constexpr int asFd(std::uint64_t arg) { return static_cast<int>(arg); }

@@ -15,7 +15,7 @@ snd::Sample Tracer::manageSyscall() {
   sample.is_allowed =
       isLaunch(sample.group) || snd::has(m_groups, sample.group);
 
-  if (!sample.is_allowed || sample.group == snd::Group::READ) {
+  if (!sample.is_allowed && sample.group != snd::Group::READ) {
     psx::blockSeccompProcess(m_cPid);
   }
 

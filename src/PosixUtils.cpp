@@ -2,6 +2,7 @@
 #include "Warden.hpp"
 #include <arpa/inet.h>
 #include <array>
+#include <complex>
 #include <csignal>
 #include <cstddef>
 #include <cstdio>
@@ -11,6 +12,7 @@
 #include <filesystem>
 #include <format>
 #include <netinet/in.h>
+#include <optional>
 #include <sched.h>
 #include <string>
 #include <sys/mount.h>
@@ -21,6 +23,7 @@
 #include <sys/un.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <system_error>
 #include <unistd.h>
 
 pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
@@ -42,7 +45,7 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
       }
     }
 
-    if (!flags.write) {
+    if (!flags.write || !flags.read) {
       if (!isolateMnt()) {
         _exit(1);
       }
@@ -132,6 +135,15 @@ bool psx::isolateMnt() {
     return false;
   }
   return true;
+}
+
+bool psx::coverUserDirs(const char *binPath) {
+  std::error_code ec;
+  auto pwd = std::filesystem::current_path(ec);
+  auto realPath = std::filesystem::canonical(binPath, ec);
+  bool isRealPath = !ec.value();
+  realPath.is_absolute();
+  return false;
 }
 
 bool psx::blockSeccompProcess(pid_t pid) {

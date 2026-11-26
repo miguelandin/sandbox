@@ -13,6 +13,9 @@ snd::Flags::Flags(Group g)
   if (!write) {
     nmflags |= CLONE_NEWNS;
   }
+  if (!read) {
+    nmflags |= CLONE_NEWNS;
+  }
   if (!user) {
     nmflags |= CLONE_NEWUSER;
   }
