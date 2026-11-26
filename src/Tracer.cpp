@@ -1,28 +1,26 @@
 #include "Tracer.hpp"
-#include "Autopsy.hpp"
-#include "Warden.hpp"
 #include <sched.h>
 
-psy::Sample Tracer::manageSyscall(pid_t pid) {
-  psy::Sample sample;
+snd::Sample Tracer::manageSyscall(pid_t pid) {
+  snd::Sample sample;
   sample.pid = pid;
   sample.syscall = m_sysInfo.seccomp.nr;
-  sample.group = static_cast<sec::Group>(m_sysInfo.seccomp.ret_data);
+  sample.group = static_cast<snd::Group>(m_sysInfo.seccomp.ret_data);
 
   switch (sample.group) {
-  case sec::Group::READ | sec::Group::WRITE:
+  case snd::Group::READ | snd::Group::WRITE:
     readWriteCall(pid, sample);
     break;
-  case sec::Group::READ:
+  case snd::Group::READ:
     readCall(pid, sample);
     break;
-  case sec::Group::WRITE:
+  case snd::Group::WRITE:
     writeCall(pid, sample);
     break;
-  case sec::Group::EXEC:
+  case snd::Group::EXEC:
     execCall(pid, sample);
     break;
-  case sec::Group::NETWORK:
+  case snd::Group::NETWORK:
     networkCall(pid, sample);
     break;
   default:
@@ -31,27 +29,27 @@ psy::Sample Tracer::manageSyscall(pid_t pid) {
   }
 }
 
-bool Tracer::networkCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::networkCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 
-bool Tracer::readCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::readCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 
-bool Tracer::writeCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::writeCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 
-bool Tracer::readWriteCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::readWriteCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 
-bool Tracer::execCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::execCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 
-bool Tracer::defaultCall(pid_t pid, psy::Sample &sample) {
+bool Tracer::defaultCall(pid_t pid, snd::Sample &sample) {
   // TODO
 }
 /*switch (m_sysInfo.entry.nr) {

@@ -4,21 +4,7 @@
 #include <seccomp.h>
 #include <sys/socket.h>
 
-constexpr std::string_view to_string(sec::Group group) noexcept {
-  switch (group) {
-  case sec::Group::NETWORK:
-    return "network";
-  case sec::Group::READ:
-    return "read";
-  case sec::Group::WRITE:
-    return "write";
-  case sec::Group::READ | sec::Group::WRITE:
-    return "read/write";
-  case sec::Group::EXEC:
-    return "execution";
-  }
-  return "UNKNOWN";
-}
+
 
 bool sec::loadSeccomp() {
   auto ctx = createNewFilter();

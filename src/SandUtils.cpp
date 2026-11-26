@@ -3,9 +3,10 @@
 #include <format>
 #include <sched.h>
 
-snd::Flags::Flags(std::uint8_t o)
-    : network(o & NETWORK), read(o & READ), write(o & WRITE), user(o & USER),
-      exec(o & EXEC) {
+snd::Flags::Flags(Group g)
+    : network(has(g, Group::NETWORK)), read(has(g, Group::READ)),
+      write(has(g, Group::WRITE)), user(has(g, Group::USER)),
+      exec(has(g, Group::EXEC)), groups(g) {
   if (!network) {
     nmflags |= CLONE_NEWNET;
   }
@@ -20,8 +21,8 @@ snd::Flags::Flags(std::uint8_t o)
   }
 }
 
-std::uint8_t snd::argsToFlags(int &i, int argc, char *argv[]) {
-  std::uint8_t flags = 0;
+snd::Group snd::argsToGroups(int &i, int argc, char *argv[]) {
+  Group groups = Group::NONE;
   for (; i < argc; i++) {
     auto flag = argv[i];
 
@@ -31,35 +32,54 @@ std::uint8_t snd::argsToFlags(int &i, int argc, char *argv[]) {
 
     int l = 1;
     while (flag[l] != '\0') {
-      flags |= letterToBit(flag[l]);
+      groups |= letterToGroup(flag[l]);
       l++;
     }
   }
 
-  return flags;
+  return groups;
 }
 
-std::uint8_t snd::letterToBit(char letter) {
+snd::Group snd::letterToGroup(char letter) {
   switch (letter) {
   case 'n':
-    return NETWORK;
+    return Group::NETWORK;
   case 'r':
-    return READ;
+    return Group::READ;
   case 'w':
-    return WRITE;
+    return Group::WRITE;
   case 'u':
-    return USER;
+    return Group::USER;
   case 'x':
-    return EXEC;
+    return Group::EXEC;
   case 'A':
-    return UINT8_MAX;
+    return static_cast<Group>(UINT8_MAX);
   default:
     std::perror(std::format("'{}' flag doesn't exist", letter).c_str());
-    return 0;
+    return Group::NONE;
   }
 }
 
 std::string snd::Flags::toString() const {
   return std::format("network={},read={},write={},user={},exec={},nmflags={}",
                      network, read, write, user, exec, nmflags);
+}
+
+std::string_view snd::group_toString(Group group) noexcept {
+  switch (group) {
+  case Group::NETWORK:
+    return "network";
+  case Group::READ:
+    return "read";
+  case Group::WRITE:
+    return "write";
+  case Group::READ | Group::WRITE:
+    return "read/write";
+  case Group::EXEC:
+    return "execution";
+  case Group::USER:
+    return "user";
+  default:
+    return "NONE";
+  }
 }

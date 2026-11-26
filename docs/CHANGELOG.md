@@ -260,3 +260,8 @@ Para ir previniendo la implementación de `journalctl`, he mirado un poco como f
 
 Finalmente para rellenar el campo target de este nuevo tipo, hay una limitación según Claude que sería necesaria documentar:
 **Limitación de TOCTOU.** Lees la ruta o el `sockaddr` en la parada de seccomp, antes de que el kernel los copie. Un malware con varios hilos podría cambiar esa memoria justo después de tu lectura: tú registras `/tmp/inocente` y el kernel abre `/etc/shadow`. Es un problema conocido de todos los sandboxes basados en ptrace.
+
+---
+26/11/26
+
+He cambiado la estructura general del código un poco: Antes tenía una mascara de bits `std::uint8_t` que solo servía como parámetro para el constructor de `snd::Flags`. También tenía un `struct` `enum` llamado Groups que hacía practicamente lo mismo que la másacara  de bits pero más seguro ya que es un `enum`. Lo que he hecho ha sido mover `psy::Sample` a `SandUtils.hpp`, el header file `Autopsy.hpp` lo he borrado porque se quedó vacío. Ahora siempre que se usa variable de Grupo, tanto como el constructor de `Flags` como para leer `.ret_data`, son siempre del tipo `Group` definido en `SandUtils.hpp`. Además de todo esto, para que funcione correctametne el `enum` como una máscara de bits, he hecho las funciones de operadores `|, &, |=`, además de que se pueden pasar a string con su función `group_toString` que se usa en la redefinición de `std::format`.

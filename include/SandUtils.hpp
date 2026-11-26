@@ -1,37 +1,79 @@
 #pragma once
 
-#include "Warden.hpp"
 #include <cstdint>
+#include <format>
 #include <sched.h>
 #include <string>
 
 // main quality of life
 namespace snd {
-constexpr std::uint8_t NETWORK = 1u << 0;
-constexpr std::uint8_t READ = 1u << 1;
-constexpr std::uint8_t WRITE = 1u << 2;
-constexpr std::uint8_t USER = 1u << 3;
-constexpr std::uint8_t EXEC = 1u << 4;
+
+enum class Group : std::uint16_t {
+  NONE = 0,
+  NETWORK = 1,
+  READ = 2,
+  WRITE = 4,
+  EXEC = 8,
+  USER = 16
+};
+
+std::string_view group_toString(Group group) noexcept;
+
+constexpr std::uint16_t raw(Group g) noexcept {
+  return static_cast<std::uint16_t>(g);
+}
+
+constexpr Group operator|(snd::Group a, snd::Group b) noexcept {
+  return static_cast<snd::Group>(raw(a) | raw(b));
+}
+
+constexpr Group operator&(snd::Group a, snd::Group b) noexcept {
+  return static_cast<snd::Group>(raw(a) & raw(b));
+}
+
+constexpr Group operator|=(snd::Group &a, snd::Group b) noexcept {
+  a = a | b;
+  return a;
+}
+
+constexpr bool has(Group set, Group flag) noexcept {
+  return (set & flag) == flag;
+}
+
+// analyzed process result
+struct Sample {
+  pid_t pid = 0;
+  std::uint64_t syscall = 0;
+  std::string target = "not found";
+  Group group;
+  bool is_allowed;
+};
 
 // manage flags in a standard way
-class Flags {
-public:
+struct Flags {
   bool network = false; // -n
   bool read = false;    // -r
   bool write = false;   // -w
   bool user = false;    // -u
   bool exec = false;    // -x
-  sec::Group allowedGroups; //TODO
+  Group groups;
   int nmflags = 0;
 
-  Flags(std::uint8_t options = 0);
+  Flags(Group groups = Group::NONE);
   std::string toString() const;
 };
 
 // convert argv into Flags options
-std::uint8_t argsToFlags(int &i, int argc, char *argv[]);
+Group argsToGroups(int &i, int argc, char *argv[]);
 
 // convert char into Flag option bit
-std::uint8_t letterToBit(char letter);
+Group letterToGroup(char letter);
 
 } // namespace snd
+
+template <>
+struct std::formatter<snd::Group> : std::formatter<std::string_view> {
+  auto format(snd::Group group, std::format_context &ctx) const {
+    return std::formatter<std::string_view>::format(group_toString(group), ctx);
+  }
+};

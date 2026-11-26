@@ -1,9 +1,7 @@
 #pragma once
-#include "Autopsy.hpp"
 #include "KernelAbi.hpp"
-#include <PosixUtils.hpp>
+#include "PosixUtils.hpp"
 #include <cerrno>
-#include <string>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -18,13 +16,13 @@ private:
   pid_t m_pid;
   struct sandbox_ptrace_syscall_info m_sysInfo;
 
-  psy::Sample manageSyscall(pid_t pid);
-  bool networkCall(pid_t pid, psy::Sample &sample);
-  bool readCall(pid_t pid, psy::Sample &sample);
-  bool writeCall(pid_t pid, psy::Sample &sample);
-  bool readWriteCall(pid_t pid, psy::Sample &sample);
-  bool execCall(pid_t pid, psy::Sample &sample);
-  bool defaultCall(pid_t pid, psy::Sample &sample);
+  snd::Sample manageSyscall(pid_t pid);
+  bool networkCall(pid_t pid, snd::Sample &sample);
+  bool readCall(pid_t pid, snd::Sample &sample);
+  bool writeCall(pid_t pid, snd::Sample &sample);
+  bool readWriteCall(pid_t pid, snd::Sample &sample);
+  bool execCall(pid_t pid, snd::Sample &sample);
+  bool defaultCall(pid_t pid, snd::Sample &sample);
 
 
 public:
@@ -33,7 +31,7 @@ public:
   }
 
   template <typename... Handlers>
-    requires(std::invocable<Handlers, psy::Sample> && ...)
+    requires(std::invocable<Handlers, snd::Sample> && ...)
   void run(Handlers... handlers) {
     psx::resumeProcess(m_pid);
 
