@@ -2,7 +2,6 @@
 #include "Warden.hpp"
 #include <arpa/inet.h>
 #include <array>
-#include <complex>
 #include <csignal>
 #include <cstddef>
 #include <cstdio>
@@ -11,8 +10,8 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <format>
+#include <iostream>
 #include <netinet/in.h>
-#include <optional>
 #include <sched.h>
 #include <string>
 #include <sys/mount.h>
@@ -47,6 +46,12 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
 
     if (!flags.write || !flags.read) {
       if (!isolateMnt()) {
+        _exit(1);
+      }
+    }
+
+    if (!flags.read) {
+      if (!coverUserDirs(binaryPath)) {
         _exit(1);
       }
     }
@@ -142,8 +147,106 @@ bool psx::coverUserDirs(const char *binPath) {
   auto pwd = std::filesystem::current_path(ec);
   auto realPath = std::filesystem::canonical(binPath, ec);
   bool isRealPath = !ec.value();
-  realPath.is_absolute();
-  return false;
+  bool isProtectedDir = isInside(realPath, "/home") ||
+                        isInside(realPath, "/root") ||
+                        isInside(realPath, "/run/user");
+
+  int originalFd = -1;
+  if (isRealPath && isProtectedDir) {
+    // saves i-node of the binPath, when used, it dissappears (works even if the
+    // dir is mounted on top)
+    originalFd = open(realPath.c_str(), O_PATH | O_CLOEXEC);
+    if (originalFd == -1) {
+      std::perror(
+          std::format("couldn't open bin at: {}", realPath.c_str()).c_str());
+      return false;
+    }
+  }
+
+  if (!mountTmpfsDirs()) {
+    return false;
+  }
+
+  if (originalFd != -1) {
+    bool mounted = mountBinEnv(realPath, originalFd);
+    close(originalFd);
+    if (!mounted) {
+      return false;
+    }
+  }
+
+  return changeWorkDir(pwd);
+}
+
+bool psx::mountBinEnv(const std::filesystem::path &binPath, int originalFd) {
+  std::error_code ec;
+  std::filesystem::create_directories(binPath.parent_path(), ec);
+  if (ec) {
+    std::cerr << ec.message();
+    return false;
+  }
+
+  auto descriptor = open(binPath.c_str(), O_WRONLY | O_CREAT, 0755);
+  if (descriptor == -1) {
+    std::perror("Couldn't create mount point inside tmpfs");
+    close(descriptor);
+    return false;
+  }
+  close(descriptor);
+
+  auto origin = std::format("/proc/self/fd/{}", originalFd);
+
+  // clang-format off
+  if(mount(origin.c_str(), binPath.c_str(), nullptr,MS_BIND,nullptr)!=0){
+    std::perror(std::format("Couldn't mount bin env. Origin:{}, path:{}",origin,binPath.c_str()).c_str());
+    return false;
+  }
+
+  if(mount(nullptr, binPath.c_str(), nullptr, MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NOSUID|MS_NODEV, nullptr)!= 0){
+    std::perror(std::format("Couln't remount bin env as read only: {}",binPath.c_str()).c_str());
+    return false;
+  }
+
+  //clang-format on
+  return true;
+}
+
+bool psx::changeWorkDir(const std::filesystem::path &workDir){
+    std::error_code ec;
+    std::filesystem::create_directories(workDir, ec);
+    if(ec){
+        std::cerr<<ec.message();
+        return false;
+    }
+
+    if(chdir(workDir.c_str()) && chdir("/")){
+        std::perror(std::format("Couldn't change workdir: {}", workDir.c_str()).c_str());
+        return false;
+    }
+
+    return true;
+}
+
+
+
+bool psx::mountTmpfsDirs() {
+  return mountTmpfsDir("/home") && mountTmpfsDir("/root") &&
+         mountTmpfsDir("/run/user");
+}
+
+bool psx::mountTmpfsDir(const char *path) {
+    auto res = mount("tmpfs", path, "tmpfs", MS_NOSUID | MS_NODEV, "size=1m,mode=755");
+  if (res != 0 && res != ENOENT) {
+    std::perror(std::format("couldn't mount tmpfs at {}", path).c_str());
+    return false;
+  }
+  return true;
+}
+
+bool psx::isInside(const std::filesystem::path &path,
+                   const std::filesystem::path &dir) {
+  auto rel = path.lexically_normal().lexically_relative(dir);
+  return  !rel.empty() && *rel.begin() != "..";
 }
 
 bool psx::blockSeccompProcess(pid_t pid) {

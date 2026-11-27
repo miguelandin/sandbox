@@ -3,6 +3,7 @@
 #include "SandUtils.hpp"
 #include <cstdint>
 #include <fcntl.h>
+#include <filesystem>
 #include <linux/limits.h>
 #include <string>
 #include <sys/mount.h>
@@ -10,7 +11,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <filesystem>
 
 // Functions to make your life easier by dealing with POSIX
 namespace psx {
@@ -49,7 +49,23 @@ bool allowSocketsICMP();
 bool isolateMnt();
 
 // hides dirs with important data by creating tmpfs mounts on top of them
-bool coverUserDirs(const char *);
+bool coverUserDirs(const char *dir);
+
+// mount a tmpfs dir at top of the path (user realpath)
+bool mountTmpfsDir(const char *path);
+
+// mounts tmpfs dirs at /root, /home, /run/user
+bool mountTmpfsDirs();
+
+// cretes a enviroment where only bin is visible in tmpfs mount
+bool mountBinEnv(const std::filesystem::path &binPath, int originalFd);
+
+// changes workDir, in case it fails with workDir, it tries with /
+bool changeWorkDir(const std::filesystem::path &workDir);
+
+// Returns true if 'path' is 'dir' itself or any entry below it (doesnt's work with symlinks)
+bool isInside(const std::filesystem::path &path,
+              const std::filesystem::path &dir);
 
 // convert arg sysInfo arg to int
 constexpr int asFd(std::uint64_t arg) { return static_cast<int>(arg); }

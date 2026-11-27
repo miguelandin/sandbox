@@ -304,61 +304,69 @@ Archivo: `src/PosixUtils.cpp`. Dentro de la función nueva, en este orden:
 - [x] Guardar el directorio de trabajo actual con `std::filesystem::current_path(ec)`.
 - [x] Calcular la ruta absoluta del binario con `std::filesystem::canonical(binaryPath, ec)`.
 - [x] Guardar en un `bool` si `canonical` ha funcionado. Si falla, el argumento es un nombre suelto (`ping`) y se buscará en el `PATH`.
-- [ ] Comprobar si esa ruta absoluta empieza por `/home/`, `/root/` o `/run/user/`. Guardarlo en otro `bool`.
-- [ ] Solo si ambos `bool` son verdaderos: abrir el binario con `open(ruta, O_PATH | O_CLOEXEC)` y guardar el descriptor.
-- [ ] Si ese `open` devuelve -1: `perror` y devolver `false`.
+- [x] Comprobar si esa ruta absoluta empieza por `/home/`, `/root/` o `/run/user/`. Guardarlo en otro `bool`.
+- [x] Solo si ambos `bool` son verdaderos: abrir el binario con `open(ruta, O_PATH | O_CLOEXEC)` y guardar el descriptor.
+- [x] Si ese `open` devuelve -1: `perror` y devolver `false`.
 
 **2.2. Tapar los directorios**
-- [ ] Montar el tmpfs sobre `/home`: `mount("tmpfs", "/home", "tmpfs", MS_NOSUID | MS_NODEV, "size=1m,mode=755")`.
-- [ ] Si falla con un error distinto de `ENOENT`: `perror` y devolver `false`.
-- [ ] Repetir el montaje y la comprobación para `/root`.
-- [ ] Repetir el montaje y la comprobación para `/run/user`.
+- [x] Montar el tmpfs sobre `/home`: `mount("tmpfs", "/home", "tmpfs", MS_NOSUID | MS_NODEV, "size=1m,mode=755")`.
+- [x] Si falla con un error distinto de `ENOENT`: `perror` y devolver `false`.
+- [x] Repetir el montaje y la comprobación para `/root`.
+- [x] Repetir el montaje y la comprobación para `/run/user`.
 
 **2.3. Volver a hacer visible el binario**
 
 Solo si se abrió el descriptor en 2.1:
 
-- [ ] Recrear los directorios padre del binario dentro del tmpfs: `std::filesystem::create_directories(ruta.parent_path(), ec)`.
-- [ ] Crear un fichero vacío con el nombre del binario: `open(ruta, O_WRONLY | O_CREAT, 0755)` y cerrarlo enseguida.
-- [ ] Construir el origen del bind mount: `std::format("/proc/self/fd/{}", descriptor)`.
-- [ ] Hacer el bind mount: `mount(origen, ruta, nullptr, MS_BIND, nullptr)`.
-- [ ] Si falla: `perror` y devolver `false`.
-- [ ] Remontarlo en solo lectura: `mount(nullptr, ruta, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr)`.
-- [ ] Si falla: `perror` y devolver `false`.
-- [ ] Cerrar el descriptor con `close`.
+- [x] Recrear los directorios padre del binario dentro del tmpfs: `std::filesystem::create_directories(ruta.parent_path(), ec)`.
+- [x] Crear un fichero vacío con el nombre del binario: `open(ruta, O_WRONLY | O_CREAT, 0755)` y cerrarlo enseguida.
+- [x] Construir el origen del bind mount: `std::format("/proc/self/fd/{}", descriptor)`.
+- [x] Hacer el bind mount: `mount(origen, ruta, nullptr, MS_BIND, nullptr)`.
+- [x] Si falla: `perror` y devolver `false`.
+- [x] Remontarlo en solo lectura: `mount(nullptr, ruta, nullptr, MS_BIND | MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr)`.
+- [x] Si falla: `perror` y devolver `false`.
+- [x] Cerrar el descriptor con `close`.
 
 **2.4. Cerrar la fuga del directorio de trabajo**
 
-- [ ] Recrear el directorio de trabajo guardado: `std::filesystem::create_directories(cwd, ec)`.
-- [ ] Hacer `chdir(cwd.c_str())`.
-- [ ] Si el `chdir` falla: hacer `chdir("/")` como último recurso. Nunca continuar sin haber hecho un `chdir` con éxito.
-- [ ] Devolver `true`.
+- [x] Recrear el directorio de trabajo guardado: `std::filesystem::create_directories(cwd, ec)`.
+- [x] Hacer `chdir(cwd.c_str())`.
+- [x] Si el `chdir` falla: hacer `chdir("/")` como último recurso. Nunca continuar sin haber hecho un `chdir` con éxito.
+- [x] Devolver `true`.
 
 #### Fase 3. Llamar a la función desde el hijo
 Archivo: `src/PosixUtils.cpp`, función `launchProcess`, dentro del `if (pid == 0)`.
-- [ ] Colocar la llamada después de `isolateMnt()` y antes de `sec::loadSeccomp()`.
-- [ ] Llamarla solo cuando falte `-r` (`!flags.read`).
-- [ ] Si devuelve `false`: `_exit(1)`. Si no se puede ocultar, el binario no se ejecuta.
-- [ ] Comprobar que el orden final del hijo es: `unshare`, `raise(SIGSTOP)`, `isolateMnt`, ocultar directorios, `loadSeccomp`, `execvp`.
-- [ ] Dejar el `execvp` tal como está, con el argumento original.
+- [x] Colocar la llamada después de `isolateMnt()` y antes de `sec::loadSeccomp()`.
+- [x] Llamarla solo cuando falte `-r` (`!flags.read`).
+- [x] Si devuelve `false`: `_exit(1)`. Si no se puede ocultar, el binario no se ejecuta.
+- [x] Comprobar que el orden final del hijo es: `unshare`, `raise(SIGSTOP)`, `isolateMnt`, ocultar directorios, `loadSeccomp`, `execvp`.
+- [x] Dejar el `execvp` tal como está, con el argumento original.
 
 #### Fase 4. Dejar de bloquear las lecturas
 Archivo: `src/Tracer.cpp`, función `manageSyscall`.
-- [ ] Localizar la línea que calcula `sample.is_allowed`.
-- [ ] Añadir un caso: si el grupo es exactamente `READ`, la llamada se permite siempre.
-- [ ] Añadir otro caso: si el grupo es `READ | WRITE` (abrir con `O_RDWR`), se permite solo si el usuario dio `-w`. Si no lo tratas aparte, seguirá exigiendo también `-r`.
-- [ ] Dejar el resto de grupos como están.
-- [ ] Comprobar que las lecturas siguen llegando al handler: deben seguir apareciendo en el log.
+- [x] Localizar la línea que calcula `sample.is_allowed`.
+- [x] Añadir un caso: si el grupo es exactamente `READ`, la llamada se permite siempre.
+- [x] Añadir otro caso: si el grupo es `READ | WRITE` (abrir con `O_RDWR`), se permite solo si el usuario dio `-w`. Si no lo tratas aparte, seguirá exigiendo también `-r`.
+- [x] Dejar el resto de grupos como están.
+- [x] Comprobar que las lecturas siguen llegando al handler: deben seguir apareciendo en el log.
 
 Archivo: `src/Warden.cpp`. No hay que tocar nada: las reglas de lectura se quedan para que el log siga funcionando.
 #### Fase 5. Pruebas
 Lanzando siempre desde `/home/<tu usuario>/prueba/` y sin `sudo`:
-- [ ] `sandbox ./binario` (sin flags): el binario dinámico arranca.
-- [ ] `sandbox ./prueba.sh`: el script se ejecuta y su `ls` solo muestra `prueba.sh`.
-- [ ] `sandbox ./lector`: `secreto.txt` no se puede abrir ni por ruta relativa ni por absoluta.
-- [ ] `sandbox -r ./lector`: `secreto.txt` sí se puede abrir.
-- [ ] `sandbox true`: un nombre suelto se sigue encontrando en `/usr/bin`.
-- [ ] `sandbox -w ./binario`: arranca, y lo que escriba en `/home` no aparece en tu `/home` real al terminar.
-- [ ] `ls /home/<tu usuario>` en otra terminal mientras el sandbox corre: tus ficheros siguen ahí. El montaje no ha salido del namespace.
-- [ ] Lanzar desde `/tmp` un binario que esté en `/tmp`: arranca y no da error en el `chdir`.
-- [ ] `make` sin avisos nuevos.
+- [x] `sandbox ./binario` (sin flags): el binario dinámico arranca.
+- [x] `sandbox ./prueba.sh`: el script se ejecuta y su `ls` solo muestra `prueba.sh`.
+- [x] `sandbox ./lector`: `secreto.txt` no se puede abrir ni por ruta relativa ni por absoluta.
+- [x] `sandbox -r ./lector`: `secreto.txt` sí se puede abrir.
+- [x] `sandbox true`: un nombre suelto se sigue encontrando en `/usr/bin`.
+- [x] `sandbox -w ./binario`: arranca, y lo que escriba en `/home` no aparece en tu `/home` real al terminar.
+- [x] `ls /home/<tu usuario>` en otra terminal mientras el sandbox corre: tus ficheros siguen ahí. El montaje no ha salido del namespace.
+- [x] Lanzar desde `/tmp` un binario que esté en `/tmp`: arranca y no da error en el `chdir`.
+- [x] `make` sin avisos nuevos.
+
+---
+27/11/26
+Tras cumplir todos los checkbox, y completar los tests, `sandbox` ahora funciona sin usar `-r`.  Luego explico como funciona todo, por ahora hay que destacar las limitaciones de este nuevo `sandbox`:
+- Un binario que sea un **symlink** dentro de `/home` no queda visible en el tmpfs.
+- Sin `-w`, las aperturas de `/dev/tty` en lectura-escritura se bloquean, así que los programas interactivos pierden la terminal.
+- El aislamiento de lectura cubre `/home`, `/root` y `/run/user`, no todo el sistema. El resto (`/etc`, `/usr`…) sigue siendo legible, y es a propósito, para que los binarios puedan cargar sus librerías.
+- La traza de rutas es **informativa**: la protección real la hace el kernel con los montajes, porque comprobar rutas desde el tracer es vulnerable a `TOCTOU`.
