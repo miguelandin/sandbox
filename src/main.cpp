@@ -9,8 +9,8 @@ int main(int argc, char *argv[]) {
   int i = 1;
   snd::Flags flags = snd::parseArgs(i, argc, argv);
 
-  if(flags.help){
-    std::cout<<snd::USAGE;
+  if (flags.help) {
+    std::cout << snd::USAGE;
     return 0;
   }
 

@@ -17,7 +17,7 @@ public:
   void operator()(const snd::Sample &s);
 
   // write sandbox events in logs
-  void journal(const snd::Sample &s);
+  void log(const snd::Sample &s);
 
   // print in screem sandbox events
   void print(const snd::Sample &s);

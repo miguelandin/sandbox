@@ -370,3 +370,7 @@ Tras cumplir todos los checkbox, y completar los tests, `sandbox` ahora funciona
 - Sin `-w`, las aperturas de `/dev/tty` en lectura-escritura se bloquean, así que los programas interactivos pierden la terminal.
 - El aislamiento de lectura cubre `/home`, `/root` y `/run/user`, no todo el sistema. El resto (`/etc`, `/usr`…) sigue siendo legible, y es a propósito, para que los binarios puedan cargar sus librerías.
 - La traza de rutas es **informativa**: la protección real la hace el kernel con los montajes, porque comprobar rutas desde el tracer es vulnerable a `TOCTOU`.
+
+Además de todo esto, y para terminar la sesión de hoy, he creado la clase (sin terminar) Logger, la cual será la que se encargará de mostrar los eventos de `sandbox`. Los eventos se pueden mostrar de tres formas: Por consola con `.print()`, en un archivo con `.save()` y en los logs del sistema con `log()`.
+
+Para decidir que opción usar a la hora de usar sandbox, he hecho un par de cambios en la clase flags: Ahora tiene el booleano help y silent además de un `string_view` que contiene el path del archivo donde queramos guardar los eventos, y a la vez hace de booleano ya que se puede comprobar con `.empty()` si se le paso la opción de guardar salida. Para poder hacer que esto funcione se ha creado una nueva función `parseArgs` que remplaza a `argsToGroups` ya que ahora hay argumentos que no forman parte del tipo `Groups` y no tendría sentido que formaran, como silent, o help.
