@@ -170,3 +170,43 @@ Eso de que dependendo de lo que ejecute use fexecve o excve me parece un poco ch
 Y como sería esta variante? sería muy complicado de implementar? Que ventajas tendría?
 Vale, haz un md con checboxes de paso por paso (muy atomizado) de como implementar esto último hablado (el plan final de como hacer que funcione sin poner -r). También anota las limitaciones que tendría para ponerlo en la memoria final.
 Quiero que se puedan ejecutar programas con sockets de sesión. Que pasa si no oculto /run/user?
+Ya falta solo implementar el journalctl, las pruebas (que sería poner un directorio tests con archivos que se compilarán y probaran con make test) y la documentación final. He estado mirando un poco y resulta que journalctl está pensado para dejar registros de aplicaciones de systemd, por lo que sandbox no encaja muy bien aquí. Igual sería mejor darle un nuevo parametro (-o) que crea un archivo de salida con el nombre que quieras. Mejor no? también podría poner las dos cosas. No sé cuanto le importará al profe que cambie un hito, si lo justificado no pasaría nada.
+Me recomiendas usar más syslog.h que systemd/journal? la segundo librería parece más fácil de usar no? no me parece un problema poner una librería más, esta la tiene todos los linux.
+Y no sería un problema usar la librería de seccomp? esa está en todos los Linux?
+Como sería un ejemplo de escribir un log con el objeto Sample?
+Quiero separar los prints que hace el binario analizado con los de sandbox en terminal. Como haría eso?
+Hay alguna librería que haga más ameno que tengan colores los cout?
+vale pues mi idea sería crear un header file para los colores como has enseñado, y crear una nueva clase que sea logger o algo así. Esta al llamarla instanciará el openlog(). Tendrá tres funciones en principio: journal, que escribe los logs para el journalctl; print que muestra los logs con colores; y save que guarda los samples recogidos en un archivo de texto con el nombre quieras. A todo esto, en journal ni en archivos de texto supongo que no puedo poner color. Como ves la idea general?
+Tenía pensado instanciar el logger justo despues de conseguir las flags
+Tengo un problema ahora y es que el constructor de flags usar Group como parametro → tendría que crear un parámetro que sea save, lo cual no tiene sentido en el contexto de los Groups.
+Y si hago en vez de la opción -o usar simplemente >> ?
+Que te parece este otro caso?: si no especifico el save file, creará el archivo sandbox.
+También debería de hacer un -h.
+Este texto como lo metería en el código? con un std::string?
+Hay alguna palabra que se me saque de dos bucles de una.
+De que librería es stdcmp.
+Cual es el color morado en char?
+Y el verde?
+Y si uso un struct de colores? Estos es mala idea no? cual es el reset?
+Lo digo para que función que se encarga de colorear, solo pueda recibir de tipo los colores.
+Hacerlo con format es más anticuado?
+En c++ moderno no se usa cout? se usa std::print?
+Puedo convertir un entero a string_view o const char * o string?
+No se supone que con el bool enabled ya sabría si estoy escribiendo en terminal o en un archivo?
+Hacer que devuelva un std::string es más rápido que por referencia porque el compilador hará un move verdad?
+A la hora de escribir un log como sería? podría mandar el mensaje tal cual?
+constexpr std::string_view RESET = "\033[1m";
+Quiero que bloquee la salida cuando lee los directorios en los que se montó tmpfs. Se te ocurre una forma fácil de hacerlo? seguro que es cambiando algún if en Tracer, no creo que haya que crear una función que compruebe donde está la escritura.
+Cual sería el mejor iterable de string_views con constexptr? simplemente un std::array<string_view> protectedDirs = {"/home","/root","/run/user"}
+Ha quedado muy bonito aunque hay muchos mensajes que se repiten. Por qué ocurre esto? sería buena idea quitar todo es ruido?
+*outFile << msg << "\n"; Como puedo hacer que en vez de sobre escribir el archivo por completo, escriba debajo.
+Mira un out file con -o Que te parece? alguna formato que sea más útil de parsear luego?
+Como hago la salida json.
+Como se escribía un log?
+Pues con esto ya estaría en principio.
+Quieres que use syslog.h o sys/syslog? cual sigue la API POSIX.
+Bueno con esto ya hemos terminado el código de sandbox! solo faltaría hacer una carpeta tests que contenga todo tipo de archivos .cpp o sh o lo que sea que hagan de virus, el MakeFile con la opción tests, los compilará con -o y mirará que la salida sea correcta.
+Como harías los tests?
+Hazme tu todos los virus. Este código sale de sandbox a sí que no cuenta como generar código, lo dije en la memoria y al profe.
+El fallo de que se pueda inyectar cosas no me parece tan peligroso. NO me importa dejarlo.
+[pasted] Hola payo. Vamos a terminar con este proyecto. Descargate la última versión del repositorio, lee todos los archivos de la documentación, lee el código entero, prueba los tests y completa este enunciado.
