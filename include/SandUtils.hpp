@@ -59,6 +59,7 @@ struct Flags {
   bool user = false;         // -u
   bool exec = false;         // -x
   bool silent = false;       // -s
+  bool verbose = false;      // -v
   bool help = false;         // -h
   std::string_view saveFile; // -o
 
@@ -66,8 +67,8 @@ struct Flags {
   int nmflags = 0;
 
   Flags() = default;
-  Flags(Group groups, bool s, bool h, std::string_view o);
-  Flags(Group groups) : Flags(groups, false, false, {}) {}
+  Flags(Group groups, bool s, bool v, bool h, std::string_view o);
+  Flags(Group groups) : Flags(groups, false, false, false, {}) {}
   std::string toString() const;
 };
 
@@ -99,6 +100,8 @@ Options:
   -o <file>   also save events to <file>
   -h, --help  show this help and exit
 )";
+
+inline constexpr std::string_view APPNAME = "sandbox";
 
 } // namespace snd
 

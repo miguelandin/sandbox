@@ -231,8 +231,12 @@ bool psx::changeWorkDir(const std::filesystem::path &workDir){
 
 
 bool psx::mountTmpfsDirs() {
-  return mountTmpfsDir("/home") && mountTmpfsDir("/root") &&
-         mountTmpfsDir("/run/user");
+    for(auto dir:PROTECTED_DIRS){
+        if(!mountTmpfsDir(dir.data())){
+            return false;
+        }
+    }
+    return true;
 }
 
 bool psx::mountTmpfsDir(const char *path) {
@@ -248,6 +252,16 @@ bool psx::isInside(const std::filesystem::path &path,
                    const std::filesystem::path &dir) {
   auto rel = path.lexically_normal().lexically_relative(dir);
   return  !rel.empty() && *rel.begin() != "..";
+}
+
+bool psx::isProtected(const std::filesystem::path &path){
+    for(std::filesystem::path p : PROTECTED_DIRS){
+        if(isInside(path, p)){
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool psx::blockSeccompProcess(pid_t pid) {

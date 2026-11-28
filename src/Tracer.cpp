@@ -12,13 +12,22 @@ snd::Sample Tracer::manageSyscall() {
   sample.syscall = m_sysInfo.seccomp.nr;
   sample.group = static_cast<snd::Group>(m_sysInfo.seccomp.ret_data);
   sample.target = getTarget(sample.group);
+
   bool allowedGroup = sample.group == snd::Group::READ ||
                       (sample.group == snd::Group::READ_WRITE
                            ? snd::has(m_groups, snd::Group::WRITE)
                            : snd::has(m_groups, sample.group));
-  sample.is_allowed = isLaunch(sample.group) || allowedGroup;
 
-  if (!sample.is_allowed) {
+  bool permitted = isLaunch(sample.group) || allowedGroup;
+
+  bool isReadCall = sample.group == snd::Group::READ ||
+                    sample.group == snd::Group::READ_WRITE;
+  bool hiddenRead = isReadCall && !snd::has(m_groups, snd::Group::READ) &&
+                    psx::isProtected(sample.target);
+
+  sample.is_allowed = permitted && !hiddenRead;
+
+  if (!permitted) {
     psx::blockSeccompProcess(m_cPid);
   }
 

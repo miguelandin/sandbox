@@ -5,10 +5,11 @@
 #include <sched.h>
 #include <string_view>
 
-snd::Flags::Flags(Group g, bool s, bool h, std::string_view o)
+snd::Flags::Flags(Group g, bool s, bool v, bool h, std::string_view o)
     : network(has(g, Group::NETWORK)), read(has(g, Group::READ)),
       write(has(g, Group::WRITE)), user(has(g, Group::USER)),
-      exec(has(g, Group::EXEC)), silent(s), help(h), saveFile(o), groups(g) {
+      exec(has(g, Group::EXEC)), silent(s), verbose(v), help(h), saveFile(o),
+      groups(g) {
   if (!network) {
     nmflags |= CLONE_NEWNET;
   }
@@ -49,6 +50,7 @@ snd::Flags snd::parseArgs(int &i, int argc, char *argv[]) {
   Group groups = Group::NONE;
   bool silent = false;
   bool help = false;
+  bool verbose = false;
   std::string_view saveFile;
 
   for (; i < argc; i++) {
@@ -69,6 +71,8 @@ snd::Flags snd::parseArgs(int &i, int argc, char *argv[]) {
         help = true;
       } else if (flag[l] == 's') {
         silent = true;
+      } else if (flag[l] == 'v') {
+        verbose = true;
       } else if (flag[l] == 'o' && i + 1 < argc) {
         saveFile = argv[++i];
         break;
@@ -79,7 +83,7 @@ snd::Flags snd::parseArgs(int &i, int argc, char *argv[]) {
     }
   }
 
-  return Flags(groups, silent, help, saveFile);
+  return Flags(groups, silent, verbose, help, saveFile);
 }
 
 snd::Group snd::letterToGroup(char letter) {
@@ -103,10 +107,11 @@ snd::Group snd::letterToGroup(char letter) {
 }
 
 std::string snd::Flags::toString() const {
-  return std::format("network={},read={},write={},user={},exec={},silent={},"
-                     "help={},save={},nmflags={}",
-                     network, read, write, user, exec, silent, help,
-                     !saveFile.empty(), nmflags);
+  return std::format(
+      "network={},read={},write={},user={},exec={},silent={},verbose={},"
+      "help={},save={},nmflags={}",
+      network, read, write, user, exec, silent, verbose, help,
+      !saveFile.empty(), nmflags);
 }
 
 std::string_view snd::group_toString(Group group) noexcept {

@@ -17,6 +17,9 @@ namespace psx {
 
 constexpr std::size_t MAX_EXEC_ARGS = 16;
 
+inline constexpr auto PROTECTED_DIRS =
+    std::to_array<std::string_view>({"/home", "/root", "/run/user"});
+
 // launch a stopped process, ready for tracing
 pid_t launchProcess(const char *filename, char *const argv[],
                     const snd::Flags &flags);
@@ -63,9 +66,13 @@ bool mountBinEnv(const std::filesystem::path &binPath, int originalFd);
 // changes workDir, in case it fails with workDir, it tries with /
 bool changeWorkDir(const std::filesystem::path &workDir);
 
-// Returns true if 'path' is 'dir' itself or any entry below it (doesnt's work with symlinks)
+// returns true if 'path' is 'dir' itself or any entry below it (doesnt's work
+// with symlinks)
 bool isInside(const std::filesystem::path &path,
               const std::filesystem::path &dir);
+
+// returns tries if 'path' is inside protected dirs
+bool isProtected(const std::filesystem::path &path);
 
 // convert arg sysInfo arg to int
 constexpr int asFd(std::uint64_t arg) { return static_cast<int>(arg); }

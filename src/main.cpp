@@ -1,3 +1,4 @@
+#include "Logger.hpp"
 #include "PosixUtils.hpp"
 #include "SandUtils.hpp"
 #include "Tracer.hpp"
@@ -13,12 +14,8 @@ int main(int argc, char *argv[]) {
     std::cout << snd::USAGE;
     return 0;
   }
-
+  Logger logger(flags);
   Tracer tracer(psx::launchProcess(argv[i], argv + i, flags), flags);
-  auto print = [](snd::Sample s) -> void {
-    std::cout << snd::group_toString(s.group) << std::endl;
-    std::cout << s.target << std::endl;
-  };
-  tracer.run(print);
+  tracer.run(std::ref(logger));
   return 0;
 }
