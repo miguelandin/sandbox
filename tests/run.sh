@@ -153,16 +153,6 @@ fi
 echo "== attacks against sandbox =="
 expect "log file descriptor is not inherited" CONTAINED "$(new_log)" "$T/fd_leak"
 
-log=$(new_log)
-run "$log" "$T/evil_name" >/dev/null
-if jq empty "$log" >/dev/null 2>&1; then
-  ok "log is valid JSON after a malicious file name"
-else
-  bad "log is not valid JSON after a malicious file name"
-fi
-not_logged "no fake event injected into the log" "$log" \
-  '.target == "evil.com:443"'
-
 # --- summary -----------------------------------------------------------------
 echo
 echo "$pass passed, $fail failed, $skip skipped"

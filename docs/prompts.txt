@@ -125,3 +125,48 @@ Cual es el equivalente de un std::uint8_t con todo 11111111?
 Cual es la diferencia entre _exit std::exit y exit?
 Osea que use _exit solo dentro del fork hijo.
 me parece que no tiene sentido el boolean swrite, debería ser simplemente la opción por defecto y ya está ya que me sería contraproducente si por defecto no podría el proceso escribir en un entorno completamente controlado en el que podría ver que hace verdad?
+Dime todas las reglas que debería de poner con seccomp_rule_add usando SCMP_ACT_ERRNO para filtrar por los grupos: red, OPEN de escritura, OPEN de lectura (incluye crear cualquier fichero), escritura, lectura, ejecución.
+Explícame palabra a palabra cada regla
+Se me ocurre que para bloquear la lectura pero siga funcionando, simplemente monte un volumen vació con los NameSpaces sobre home. Así no podra ver nada de información de los usuarios. El resto de directorios están protegidos ya que no tendría permisos de ver (solo tmp).
+En este ejemplo, no estás poniendo en las reglas el SCMP_ACT_TRACE. Como se supone que voy a saber el grupo de instrucción saltada? Recuerda que voy a tener un struct enum que sea NETWORK, READ, WRITE, EXEC.
+Dónde se pone el -lseccomp? al lado de --WALL?
+Cual es el comentario que hace que el lsp no formatee cierta parte del código?
+[pasted] Así ha quedado. Recuerda, la idea es poner estas reglas para que el Tracer solo intercepte estas llamadas al sistema, luego me encargare a mano de si bloquearla o continuar.
+Los setDefaultRule que normas son? por que estos son directamente EPERM?
+switch (m_sysInfo.seccomp.ret_data >> 16) { case sec::Group::NETWORK: } Para parsear el grupo se haría así?
+Podría hacer un cast de std::uint32_t a sec::Group?
+READ_WRITE vale 6? mejor defino la variable en el enum para que tenga valor para su _toString.
+Podría hacer que hasGroup reciba ... valores de tipo group para poder encadenarlos: return (data & (sec::id(group) | ...groups) != 0;
+Pues mira, lo mejor va a ser hacer esta opción, no determino si es de read o write, en el toString pongo el caso "read/write"
+No hace falta que defina el operador READ_WRITE verdad?
+[Pasted] Estas son las funciones que voy a usar para manejar procesos parados.
+No te preocupes, no uso PTRACE_SYSCALL.
+Y no sería a todo esto, en vez de usar un struct enum para hacer de los groups, mejor usar una máscara de bits? porque parece que es eso lo que estamos intentado hacer
+Ahora me toca etiquetar por .nr y con ello rellenar los valores de sample.target, en el que digo que archivo (binario, fichero, etc) o dirección ip (en NETWORK) ha accedido y lo guardo en sample.target.
+Puedo crear un objeto Group que sea   Group allowedGroups = Group::NETWORK | Group::READ | Group::WRITE; ? Luego para comprobar si hay cierto grupo podría hacer allowedGroup  & Group::Network != 0
+uint16 hasta cuanto llega? el siguiente valor debería de ser 16 verdad?
+Por qué no puedo hacer |= con groups? me falta el operador?
+Me falta el operador de asignar valor groups(g), como se haría?
+Puedo meter un método toString dentro del struct enum de group?
+Qué significa el noexecpt?
+Puedo hacer el operador = en caso de que reciba un uint?
+Dónde puedo encontrar funciones que hagan la lectura de RAM? es demasiado complicado para mí y no tengo el tiempo suficiente para hacerlas. Esto no es generar código, sino buscar en internet, lo llevan haciendo los programadores décadas antes de que existiera la IA. Además de que la IA en verdad es un buscador en esteroides.
+He movido todas esas funciones de leer la memoria a psx. Corrige todo lo que esté mal. Dame un versión nueva de estos archivos CORRIGIENDO SOLO LOS FALLOS DE COMPILACIÓN.
+Puedo acceder al pid del proceso desde m_sysInfo?
+sockaddr_storage storage{}; De que librería viene esto?
+formatSockaddr es una función de la librería?
+[pasted] Dime que bugs tiene este archivo. (no poner cosas nuevas que falten por implementar, solo que compile).
+El puntero de un std::uint16_t es más rápido que copiar el std::uint16_t?
+[project zip] Analizalo, mira que todo tenga sentido y funcione. En principio, me parece que falta (para que funcione seccomp) el tema de que permita ejecutar excve y luego siga bloqueando binarios. Dime que en que líneas y archivos estan los bugs, nó como resolverlos.
+isLaunch() está comprobando si se debería de bloquear el exec.
+[pasted out] No me está diciendo ips a las que accede por que se debe esto?
+igual no debería de quitar la conexión a internet con el namespace. Así podría intentar conectarse pero será bloqueado y obtendré la ip. ¿No?
+Vale entonces podría conseguir la ip si está escrita directamente en el código y si en otro caso, lo que está puesto es una dns, coger la dirección dns.
+Entonces que tengo que cambiar para que consiga las ips sin tener que poner -n o -u es decir darle permisos ICMP.
+Qué son los permisos ICMP?
+Tengo que mirar como quita el warning del case cuando invento valores de Group usando `Group | Group`. También voy a cambiar como se manejan las operaciones de lectura: Ahora mismo si no está permitido la lectura se bloquean directamente con la función `blockSeccompProcess`. Esto es un problema porque como mencioné en previos logs, los binarios necesitan leer de librerías y recursos para funcionar. Se me ocurren dos cosas: Compilarlo estáticamente para que los recursos los tengo en el propio código, o como mencioné el otro día montar overlays en `/home` y `/tmp`.
+La idea sería montar un tmpfs vació sobre /home /roo y /run/user. Para que pueda ejecutar el binario que se encuentra en /home lo puedo abrír antes de montar y ejecutarlo por descriptor. A que te refieres exactamente con eso? Como se montaría un tmpfs en un directorio? Tengo que hacer lo de lowerdir= workdir= mergedir= ? si tengo que hacer eso último vas a tener que darme código de la solución porque sino nunca terminaré esto.
+Eso de que dependendo de lo que ejecute use fexecve o excve me parece un poco chapuza, además de que no funcionarían scripts sh. Cuentame la otra opción como sería. Cambiar el chdir() resolvería el problema de fuga en el directorio de trabajo no?
+Y como sería esta variante? sería muy complicado de implementar? Que ventajas tendría?
+Vale, haz un md con checboxes de paso por paso (muy atomizado) de como implementar esto último hablado (el plan final de como hacer que funcione sin poner -r). También anota las limitaciones que tendría para ponerlo en la memoria final.
+Quiero que se puedan ejecutar programas con sockets de sesión. Que pasa si no oculto /run/user?

@@ -15,14 +15,12 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if(i>=argc){
-    std::cerr<<snd::USAGE;
+  if (i >= argc) {
+    std::cerr << snd::USAGE;
     return 1;
   }
 
   Logger logger(flags);
   Tracer tracer(psx::launchProcess(argv[i], argv + i, flags), flags, argv[i]);
-  tracer.run(std::ref(logger));
-
-  return 0;
+  return tracer.run(std::ref(logger));
 }

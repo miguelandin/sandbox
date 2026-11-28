@@ -3,6 +3,7 @@
 #include "PosixUtils.hpp"
 #include "SandUtils.hpp"
 #include <cerrno>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <sys/ptrace.h>
@@ -20,6 +21,7 @@ private:
   pid_t m_cPid;
   snd::Group m_groups;
   bool m_launched = false;
+  int m_exitcode = 1;
   std::filesystem::path m_binPath;
   struct sandbox_ptrace_syscall_info m_sysInfo;
 
@@ -46,7 +48,7 @@ public:
 
   template <typename... Handlers>
     requires(std::invocable<Handlers, snd::Sample> && ...)
-  void run(Handlers... handlers) {
+  int run(Handlers... handlers) {
     psx::resumeProcess(m_pid);
 
     while (true) {
@@ -66,7 +68,11 @@ public:
 
       switch (psx::classifyStop(m_status)) {
       case psx::StopKind::Ended: {
-        // TODO report exit code or the killing signal
+        if (m_pid != m_cPid) {
+          m_exitcode = WIFEXITED(m_status)     ? WEXITSTATUS(m_status)
+                       : WIFSIGNALED(m_status) ? 128 + WTERMSIG(m_status)
+                                               : 1;
+        }
         continue;
       }
       case psx::StopKind::PtraceEvent: {
@@ -95,5 +101,7 @@ public:
       }
       psx::resumeProcess(m_cPid, m_signal);
     }
+
+    return m_exitcode;
   }
 };
