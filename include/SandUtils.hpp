@@ -4,6 +4,7 @@
 #include <format>
 #include <sched.h>
 #include <string>
+#include <string_view>
 
 // main quality of life
 namespace snd {
@@ -46,29 +47,58 @@ struct Sample {
   pid_t pid = 0;
   std::uint64_t syscall = 0;
   std::string target = "not found";
-  Group group;
-  bool is_allowed;
+  Group group = Group::NONE;
+  bool is_allowed = false;
 };
 
 // manage flags in a standard way
 struct Flags {
-  bool network = false; // -n
-  bool read = false;    // -r
-  bool write = false;   // -w
-  bool user = false;    // -u
-  bool exec = false;    // -x
-  Group groups;
+  bool network = false;      // -n
+  bool read = false;         // -r
+  bool write = false;        // -w
+  bool user = false;         // -u
+  bool exec = false;         // -x
+  bool silent = false;       // -s
+  bool help = false;         // -h
+  std::string_view saveFile; // -o
+
+  Group groups = Group::NONE;
   int nmflags = 0;
 
-  Flags(Group groups = Group::NONE);
+  Flags() = default;
+  Flags(Group groups, bool s, bool h, std::string_view o);
+  Flags(Group groups) : Flags(groups, false, false, {}) {}
   std::string toString() const;
 };
 
 // convert argv into Flags options
 Group argsToGroups(int &i, int argc, char *argv[]);
 
+// convert argv into Flags options
+Flags parseArgs(int &i, int argc, char *arv[]);
+
 // convert char into Flag option bit
 Group letterToGroup(char letter);
+
+inline constexpr std::string_view USAGE =
+    R"(Usage: sandbox [options] <binary> [args...]
+
+Run a binary in an isolated, traced environment.
+Everything is denied by default; flags grant permissions.
+
+Permissions:
+  -n          allow network access
+  -r          allow reading files
+  -w          allow writing in files
+  -x          allow executing bins
+  -u          allow executing by current user
+  -A          allow everything
+
+Options:
+  -s          silent: do not print events to the terminal
+  -o <file>   also save events to <file>
+  -h, --help  show this help and exit
+)";
 
 } // namespace snd
 

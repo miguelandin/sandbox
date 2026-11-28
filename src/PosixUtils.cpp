@@ -60,6 +60,7 @@ pid_t psx::launchProcess(const char *binaryPath, char *const *arguments,
       _exit(1);
     }
 
+    close_range(3, ~0U, CLOSE_RANGE_CLOEXEC);
     execvp(binaryPath, arguments);
     std::perror("execve execution failed");
     _exit(127);

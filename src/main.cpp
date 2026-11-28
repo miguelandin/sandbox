@@ -7,8 +7,12 @@
 
 int main(int argc, char *argv[]) {
   int i = 1;
-  snd::Flags flags(snd::argsToGroups(i, argc, argv));
-  std::cout << flags.toString() << std::endl;
+  snd::Flags flags = snd::parseArgs(i, argc, argv);
+
+  if(flags.help){
+    std::cout<<snd::USAGE;
+    return 0;
+  }
 
   Tracer tracer(psx::launchProcess(argv[i], argv + i, flags), flags);
   auto print = [](snd::Sample s) -> void {

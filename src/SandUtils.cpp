@@ -1,12 +1,14 @@
 #include "SandUtils.hpp"
 #include <cstdint>
+#include <cstring>
 #include <format>
 #include <sched.h>
+#include <string_view>
 
-snd::Flags::Flags(Group g)
+snd::Flags::Flags(Group g, bool s, bool h, std::string_view o)
     : network(has(g, Group::NETWORK)), read(has(g, Group::READ)),
       write(has(g, Group::WRITE)), user(has(g, Group::USER)),
-      exec(has(g, Group::EXEC)), groups(g) {
+      exec(has(g, Group::EXEC)), silent(s), help(h), saveFile(o), groups(g) {
   if (!network) {
     nmflags |= CLONE_NEWNET;
   }
@@ -43,6 +45,43 @@ snd::Group snd::argsToGroups(int &i, int argc, char *argv[]) {
   return groups;
 }
 
+snd::Flags snd::parseArgs(int &i, int argc, char *argv[]) {
+  Group groups = Group::NONE;
+  bool silent = false;
+  bool help = false;
+  std::string_view saveFile;
+
+  for (; i < argc; i++) {
+    auto flag = argv[i];
+
+    if (flag[0] != '-') {
+      break;
+    }
+
+    if (std::strcmp(flag, "--help") == 0) {
+      help = true;
+      continue;
+    }
+
+    int l = 1;
+    while (flag[l] != '\0') {
+      if (flag[l] == 'h') {
+        help = true;
+      } else if (flag[l] == 's') {
+        silent = true;
+      } else if (flag[l] == 'o' && i + 1 < argc) {
+        saveFile = argv[++i];
+        break;
+      } else {
+        groups |= letterToGroup(flag[l]);
+      }
+      l++;
+    }
+  }
+
+  return Flags(groups, silent, help, saveFile);
+}
+
 snd::Group snd::letterToGroup(char letter) {
   switch (letter) {
   case 'n':
@@ -64,8 +103,10 @@ snd::Group snd::letterToGroup(char letter) {
 }
 
 std::string snd::Flags::toString() const {
-  return std::format("network={},read={},write={},user={},exec={},nmflags={}",
-                     network, read, write, user, exec, nmflags);
+  return std::format("network={},read={},write={},user={},exec={},silent={},"
+                     "help={},save={},nmflags={}",
+                     network, read, write, user, exec, silent, help,
+                     !saveFile.empty(), nmflags);
 }
 
 std::string_view snd::group_toString(Group group) noexcept {
