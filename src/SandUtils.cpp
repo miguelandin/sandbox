@@ -22,9 +22,6 @@ snd::Flags::Flags(Group g, bool s, bool v, bool h, std::string_view o)
   if (!user) {
     nmflags |= CLONE_NEWUSER;
   }
-  if (!exec) {
-    nmflags |= CLONE_NEWPID;
-  }
 }
 
 snd::Group snd::argsToGroups(int &i, int argc, char *argv[]) {
