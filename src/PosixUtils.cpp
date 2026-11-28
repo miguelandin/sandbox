@@ -148,12 +148,9 @@ bool psx::coverUserDirs(const char *binPath) {
   auto pwd = std::filesystem::current_path(ec);
   auto realPath = std::filesystem::canonical(binPath, ec);
   bool isRealPath = !ec.value();
-  bool isProtectedDir = isInside(realPath, "/home") ||
-                        isInside(realPath, "/root") ||
-                        isInside(realPath, "/run/user");
 
   int originalFd = -1;
-  if (isRealPath && isProtectedDir) {
+  if (isRealPath && isProtected(realPath)) {
     // saves i-node of the binPath, when used, it dissappears (works even if the
     // dir is mounted on top)
     originalFd = open(realPath.c_str(), O_PATH | O_CLOEXEC);

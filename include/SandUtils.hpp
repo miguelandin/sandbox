@@ -99,6 +99,7 @@ Options:
   -s          silent: do not print events to the terminal
   -o <file>   also save events to <file>
   -h, --help  show this help and exit
+  -v          verbose console output
 )";
 
 inline constexpr std::string_view APPNAME = "sandbox";

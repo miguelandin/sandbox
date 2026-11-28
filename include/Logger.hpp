@@ -11,7 +11,8 @@ class Logger {
   std::optional<std::ofstream> outFile;
 
   const std::string paintedMessage(const snd::Sample &s);
-  const std::string message(const snd::Sample &s);
+  const std::string logMessage(const snd::Sample &s);
+  const std::string jsonMessage(const snd::Sample &s);
 
 public:
   Logger(bool silent, bool verbose, std::string_view filePath);
@@ -22,11 +23,11 @@ public:
   void operator()(const snd::Sample &s);
 
   // write sandbox events in logs
-  void log(std::string_view message);
+  void log(const snd::Sample &s);
 
   // print in screem sandbox events
-  void print(std::string_view message);
+  void print(const snd::Sample &s);
 
   // save sandbox event in file
-  void save(std::string_view message);
+  void save(const snd::Sample &s);
 };

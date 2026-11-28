@@ -1,0 +1,21 @@
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":59,"group":"execution","allowed":true,"target":"/home/mike/Repos/sandbox/bin/test4 argv: ./bin/test4"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":257,"group":"read","allowed":true,"target":"/etc/ld.so.cache"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libstdc++.so.6"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libstdc++.so.6.0.36"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libm.so.6"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libm.so.6"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libgcc_s.so.1"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libgcc_s.so.1"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libc.so.6"}
+{"ts":"2026-11-28T13:27:17Z","pid":46302,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libc.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":59,"group":"execution","allowed":true,"target":"/home/mike/Repos/sandbox/bin/test3 argv: ./bin/test3"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"read","allowed":true,"target":"/etc/ld.so.cache"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libstdc++.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libstdc++.so.6.0.36"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libm.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libm.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libgcc_s.so.1"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libgcc_s.so.1"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"read","allowed":true,"target":"/usr/lib/libc.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":0,"group":"read","allowed":true,"target":"/usr/lib/libc.so.6"}
+{"ts":"2026-11-28T13:27:34Z","pid":46416,"nr":257,"group":"write","allowed":false,"target":"unreadable path"}

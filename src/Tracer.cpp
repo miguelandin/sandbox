@@ -23,7 +23,8 @@ snd::Sample Tracer::manageSyscall() {
   bool isReadCall = sample.group == snd::Group::READ ||
                     sample.group == snd::Group::READ_WRITE;
   bool hiddenRead = isReadCall && !snd::has(m_groups, snd::Group::READ) &&
-                    psx::isProtected(sample.target);
+                    psx::isProtected(sample.target) &&
+                    !isLaunchBin(sample.target);
 
   sample.is_allowed = permitted && !hiddenRead;
 
@@ -225,3 +226,7 @@ std::string Tracer::execCall() {
 }
 
 std::string Tracer::defaultCall() { return "syscall with no know target"; }
+
+bool Tracer::isLaunchBin(std::filesystem::path target) {
+  return !m_binPath.empty() && target.lexically_normal() == m_binPath;
+}

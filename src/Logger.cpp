@@ -1,18 +1,22 @@
 #include "Logger.hpp"
 #include "Color.hpp"
 #include "SandUtils.hpp"
+#include <chrono>
 #include <format>
 #include <iostream>
 #include <optional>
 #include <string_view>
-#include <sys/syslog.h>
+#include <syslog.h>
 
 Logger::Logger(bool silent, bool verbose, std::string_view out)
     : silent(silent), verbose(verbose) {
   if (!out.empty()) {
-    outFile.emplace(out.data());
+    outFile.emplace(std::string(out.data()), std::ios::app);
+    if (!outFile->is_open()) {
+      std::cerr << std::format("couldn't open out file at: {}", out);
+    }
   }
-  openlog("sandbox", LOG_PID, LOG_USER);
+  openlog(snd::APPNAME.data(), LOG_PID, LOG_USER);
 }
 
 Logger::Logger(const snd::Flags &f) : Logger(f.silent, f.verbose, f.saveFile) {}
@@ -20,22 +24,11 @@ Logger::Logger(const snd::Flags &f) : Logger(f.silent, f.verbose, f.saveFile) {}
 Logger::~Logger() { closelog(); }
 
 void Logger::operator()(const snd::Sample &s) {
-  auto plainMessage = message(s);
-  if (!silent) {
-    if (!verbose) {
-      if (!s.is_allowed) {
-        print(paintedMessage(s));
-      }
-    } else {
-      print(paintedMessage(s));
-    }
+  if (!silent && (verbose || !s.is_allowed)) {
+    print(s);
   }
-
-  /* if (outFile) {
-     save(plainMessage);
-   }
-
-   log(plainMessage);*/
+  save(s);
+  log(s);
 }
 
 const std::string Logger::paintedMessage(const snd::Sample &s) {
@@ -51,9 +44,33 @@ const std::string Logger::paintedMessage(const snd::Sample &s) {
                      syscall, allowed, target);
 }
 
-const std::string Logger::message(const snd::Sample &s) {
-  return std::format("pid={} group={} syscall={} allowed={} target={}", s.pid,
-                     s.group, s.syscall, s.is_allowed, s.target);
+const std::string Logger::logMessage(const snd::Sample &s) {
+  return std::format(
+      "pid='{}' group='{}' syscall='{}' allowed='{}' target='{}'", s.pid,
+      s.group, s.syscall, s.is_allowed, s.target);
 }
 
-void Logger::print(std::string_view msg) { std::cerr << msg << "\n"; }
+const std::string Logger::jsonMessage(const snd::Sample &s) {
+  auto now = std::chrono::floor<std::chrono::seconds>(
+      std::chrono::system_clock::now());
+
+  return std::format(
+      R"({{"ts":"{:%FT%TZ}","pid":{},"nr":{},"group":"{}","allowed":{},"target":"{}"}})",
+      now, s.pid, s.syscall, s.group, s.is_allowed, s.target);
+}
+
+void Logger::print(const snd::Sample &s) {
+  std::cerr << paintedMessage(s) << "\n";
+}
+
+void Logger::save(const snd::Sample &s) {
+  if (outFile) {
+    *outFile << jsonMessage(s) << "\n";
+    outFile->flush();
+  }
+}
+
+void Logger::log(const snd::Sample &s) {
+  auto prio = s.is_allowed ? LOG_INFO : LOG_WARNING;
+  syslog(prio, "%s", logMessage(s).c_str());
+}

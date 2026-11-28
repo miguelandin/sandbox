@@ -3,6 +3,7 @@
 #include "PosixUtils.hpp"
 #include "SandUtils.hpp"
 #include <cerrno>
+#include <filesystem>
 #include <string>
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
@@ -19,6 +20,7 @@ private:
   pid_t m_cPid;
   snd::Group m_groups;
   bool m_launched = false;
+  std::filesystem::path m_binPath;
   struct sandbox_ptrace_syscall_info m_sysInfo;
 
   snd::Sample manageSyscall();
@@ -30,13 +32,17 @@ private:
   std::string defaultCall();
   std::string getTarget(snd::Group group);
   bool isLaunch(snd::Group sampleGroup);
+  bool isLaunchBin(std::filesystem::path target);
 
 public:
   Tracer(pid_t pid, snd::Group g) : m_pid(pid), m_groups(g) {
     ptrace(PTRACE_SEIZE, pid, nullptr, m_options);
   }
 
-  Tracer(pid_t pid, snd::Flags f) : Tracer(pid, f.groups) {}
+  Tracer(pid_t pid, snd::Flags f, const char *binPath) : Tracer(pid, f.groups) {
+    std::error_code ec;
+    m_binPath = std::filesystem::canonical(binPath, ec);
+  }
 
   template <typename... Handlers>
     requires(std::invocable<Handlers, snd::Sample> && ...)
